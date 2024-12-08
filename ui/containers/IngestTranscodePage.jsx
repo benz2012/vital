@@ -356,24 +356,30 @@ const LinkageAnnotationPage = () => {
     const duplicates = {}
 
     const newMediaGroups = mediaGroups.map((group) => {
+      const groupName = group.subfolder
+
       const newMediaList = group.mediaList.map((media) => {
+        const oldName = media.fileName
         const newName = processBatchRenameOnString(media.fileName)
-        if (newNameOldNameMap?.[group]?.[newName]) {
-          if (!duplicates?.[group]?.[newName]) {
-            if (!duplicates[group]) {
-              duplicates[group] = {}
+
+        if (newNameOldNameMap?.[groupName]?.[newName]) {
+          if (!duplicates?.[groupName]?.[newName]) {
+            if (!duplicates[groupName]) {
+              duplicates[groupName] = {}
             }
-            duplicates[group][newName] = [newNameOldNameMap[group][newName]]
+            duplicates[groupName][newName] = [newNameOldNameMap[groupName][newName]]
           }
-          duplicates[group][newName].push(media.fileName)
+          duplicates[groupName][newName].push(oldName)
         } else {
-          if (!newNameOldNameMap[group]) {
-            newNameOldNameMap[group] = {}
+          if (!newNameOldNameMap[groupName]) {
+            newNameOldNameMap[groupName] = {}
           }
-          newNameOldNameMap[group][newName] = media.fileName
+          newNameOldNameMap[groupName][newName] = oldName
         }
+
         return { ...media, newName }
       })
+
       return { ...group, mediaList: newMediaList }
     })
 
