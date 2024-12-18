@@ -32,9 +32,9 @@ const initialState = {
     applied: true,
   },
   compressionBuckets: {
-    small: { images: [], selection: 100, size: 0 },
-    medium: { images: [], selection: 100, size: 0 },
-    large: { images: [], selection: 100, size: 0 },
+    small: { images: [], selection: 100, size: 0, sizes: [] },
+    medium: { images: [], selection: 100, size: 0, sizes: [] },
+    large: { images: [], selection: 100, size: 0, sizes: [] },
   },
   jobId: null,
   jobIdDark: null,

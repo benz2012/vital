@@ -12,7 +12,7 @@ import useJobStore from '../store/job'
 import { leafPath } from '../utilities/paths'
 import { bytesToSize } from '../utilities/strings'
 import STATUSES from '../constants/statuses'
-import { IMAGE_QUALITIES, BUCKET_THRESHOLDS } from '../constants/fileTypes'
+import { IMAGE_QUALITIES, BUCKET_THRESHOLDS, HISTOGRAM_THRESHOLDS } from '../constants/fileTypes'
 
 import Sidebar from '../components/Sidebar'
 import SidebarHeader from '../components/SidebarHeader'
@@ -66,6 +66,57 @@ const CompressionSidebar = ({
   totalImages += compressionBuckets.medium?.images?.length || 0
   totalImages += compressionBuckets.large?.images?.length || 0
 
+  const smallBins = compressionBuckets.small?.sizes?.reduce(
+    (acc, fileSize) => {
+      let [bin1, bin2, bin3, bin4] = acc
+      if (fileSize < HISTOGRAM_THRESHOLDS[1]) {
+        bin1 += 1
+      } else if (fileSize < HISTOGRAM_THRESHOLDS[2]) {
+        bin2 += 1
+      } else if (fileSize < HISTOGRAM_THRESHOLDS[3]) {
+        bin3 += 1
+      } else {
+        bin4 += 1
+      }
+      return [bin1, bin2, bin3, bin4]
+    },
+    [0, 0, 0, 0]
+  ) || [0, 0, 0, 0]
+
+  const mediumBins = compressionBuckets.medium?.sizes?.reduce(
+    (acc, fileSize) => {
+      let [bin1, bin2, bin3, bin4] = acc
+      if (fileSize < HISTOGRAM_THRESHOLDS[1]) {
+        bin1 += 1
+      } else if (fileSize < HISTOGRAM_THRESHOLDS[2]) {
+        bin2 += 1
+      } else if (fileSize < HISTOGRAM_THRESHOLDS[3]) {
+        bin3 += 1
+      } else {
+        bin4 += 1
+      }
+      return [bin1, bin2, bin3, bin4]
+    },
+    [0, 0, 0, 0]
+  ) || [0, 0, 0, 0]
+
+  const largeBins = compressionBuckets.large?.sizes?.reduce(
+    (acc, fileSize) => {
+      let [bin1, bin2, bin3, bin4] = acc
+      if (fileSize < HISTOGRAM_THRESHOLDS[1]) {
+        bin1 += 1
+      } else if (fileSize < HISTOGRAM_THRESHOLDS[2]) {
+        bin2 += 1
+      } else if (fileSize < HISTOGRAM_THRESHOLDS[3]) {
+        bin3 += 1
+      } else {
+        bin4 += 1
+      }
+      return [bin1, bin2, bin3, bin4]
+    },
+    [0, 0, 0, 0]
+  ) || [0, 0, 0, 0]
+
   const jobIdDark = useJobStore((state) => state.jobIdDark)
   const triggerDarkImagesIdentify = useJobStore((state) => state.triggerDarkImagesIdentify)
   const colorCorrectApplied = useJobStore((state) => state.colorCorrectApplied)
@@ -118,6 +169,11 @@ const CompressionSidebar = ({
             >
               {smallChoice}
             </Box>
+            <Box>
+              {smallBins.map((numInBin) => (
+                <>{numInBin} | </>
+              ))}
+            </Box>
           </Box>
           <Box>
             <Box sx={{ fontSize: '20px' }}>Medium Images Bucket</Box>
@@ -144,6 +200,11 @@ const CompressionSidebar = ({
             >
               {mediumChoice}
             </Box>
+            <Box>
+              {mediumBins.map((numInBin) => (
+                <>{numInBin} | </>
+              ))}
+            </Box>
           </Box>
           <Box>
             <Box sx={{ fontSize: '20px' }}>Large Images Bucket</Box>
@@ -168,6 +229,11 @@ const CompressionSidebar = ({
               sx={{ color: largeChoice === 'None' ? 'text.primary' : 'primary.main' }}
             >
               {largeChoice}
+            </Box>
+            <Box>
+              {largeBins.map((numInBin) => (
+                <>{numInBin} | </>
+              ))}
             </Box>
           </Box>
           <Box>

@@ -100,12 +100,15 @@ const LinkageAnnotationPage = () => {
         if (megapixels < BUCKET_THRESHOLDS.medium) {
           newBuckets.small.images.push(media.filePath)
           newBuckets.small.size += media.fileSize
+          newBuckets.small.sizes.push(media.fileSize)
         } else if (megapixels < BUCKET_THRESHOLDS.large) {
           newBuckets.medium.images.push(media.filePath)
           newBuckets.medium.size += media.fileSize
+          newBuckets.medium.sizes.push(media.fileSize)
         } else {
           newBuckets.large.images.push(media.filePath)
           newBuckets.large.size += media.fileSize
+          newBuckets.large.sizes.push(media.fileSize)
         }
       })
     )
