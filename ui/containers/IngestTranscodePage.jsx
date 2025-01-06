@@ -2,10 +2,10 @@ import { useState, useEffect, useMemo, useRef } from 'react'
 import Box from '@mui/material/Box'
 
 import useStore from '../store'
-import useJobStore, { initialState } from '../store/job'
+import useJobStore, { initialState, determineBucketForResolution } from '../store/job'
 import STATUSES, { ERRORS, WARNINGS } from '../constants/statuses'
 import { JOB_PHASES, JOB_MODES } from '../constants/routes'
-import { ROOT_FOLDER, BUCKET_THRESHOLDS } from '../constants/fileTypes'
+import { ROOT_FOLDER } from '../constants/fileTypes'
 import ingestAPI from '../api/ingest'
 import {
   bytesToSize,
@@ -93,23 +93,14 @@ const LinkageAnnotationPage = () => {
   const setCompressionBuckets = useJobStore((state) => state.setCompressionBuckets)
   const setCompressionSelection = useJobStore((state) => state.setCompressionSelection)
   const moveToCompressionPage = () => {
+    // Build out new buckets from all existing images
     const newBuckets = dumbClone(initialState.compressionBuckets)
     mediaGroups.forEach((group) =>
       group.mediaList.forEach((media) => {
-        const megapixels = resolutionToTotalPixels(media.resolution)
-        if (megapixels < BUCKET_THRESHOLDS.medium) {
-          newBuckets.small.images.push(media.filePath)
-          newBuckets.small.size += media.fileSize
-          newBuckets.small.sizes.push(media.fileSize)
-        } else if (megapixels < BUCKET_THRESHOLDS.large) {
-          newBuckets.medium.images.push(media.filePath)
-          newBuckets.medium.size += media.fileSize
-          newBuckets.medium.sizes.push(media.fileSize)
-        } else {
-          newBuckets.large.images.push(media.filePath)
-          newBuckets.large.size += media.fileSize
-          newBuckets.large.sizes.push(media.fileSize)
-        }
+        const bucketForMedia = determineBucketForResolution(compressionBuckets, media.resolution)
+        newBuckets[bucketForMedia].images.push(media.filePath)
+        newBuckets[bucketForMedia].totalBytes += media.fileSize
+        newBuckets[bucketForMedia].resolutions.push([media.width, media.height])
       })
     )
     setCompressionBuckets(newBuckets)
@@ -271,16 +262,14 @@ const LinkageAnnotationPage = () => {
       )
       const settingsList = mediaGroups.flatMap((group) =>
         group.mediaList.map((media) => {
-          let bucket = 'small'
-          if (compressionBuckets.medium.images.includes(media.filePath)) {
-            bucket = 'medium'
-          } else if (compressionBuckets.large.images.includes(media.filePath)) {
-            bucket = 'large'
-          }
+          const bucketKey = Object.keys(compressionBuckets).find((thisBucketKey) => {
+            const bucket = compressionBuckets[thisBucketKey]
+            return bucket.images.includes(media.filePath)
+          })
           return {
             file_path: media.filePath,
             new_name: media.newName,
-            jpeg_quality: compressionBuckets[bucket].selection,
+            jpeg_quality: compressionBuckets[bucketKey].selection,
             is_dark: media.fileName in darkImagesSelected,
           }
         })

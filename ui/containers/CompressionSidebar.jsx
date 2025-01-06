@@ -12,7 +12,7 @@ import useJobStore from '../store/job'
 import { leafPath } from '../utilities/paths'
 import { bytesToSize } from '../utilities/strings'
 import STATUSES from '../constants/statuses'
-import { IMAGE_QUALITIES, BUCKET_THRESHOLDS, HISTOGRAM_THRESHOLDS } from '../constants/fileTypes'
+import { COMPRESSION_OPTIONS } from '../constants/fileTypes'
 
 import Sidebar from '../components/Sidebar'
 import SidebarHeader from '../components/SidebarHeader'
@@ -34,88 +34,25 @@ const CompressionSidebar = ({
   canTrigger,
   onTriggerAction,
 }) => {
-  const buckets = ['small', 'medium', 'large']
   const sourceFolder = useJobStore((state) => state.sourceFolder)
   const compressionBuckets = useJobStore((state) => state.compressionBuckets)
 
-  let smallChoice = IMAGE_QUALITIES[compressionBuckets.small?.selection]?.compressionAmount
-  let mediumChoice = IMAGE_QUALITIES[compressionBuckets.medium?.selection]?.compressionAmount
-  let largeChoice = IMAGE_QUALITIES[compressionBuckets.large?.selection]?.compressionAmount
+  const totalSavings = Object.values(compressionBuckets).reduce((acc, bucket) => {
+    const originalSize = bucket.totalBytes
+    const choiceBPP = COMPRESSION_OPTIONS[bucket.selection]?.bitsPerPixel
+    const totalNumPixels = bucket.resolutions.reduce(
+      (acc, [width, height]) => acc + width * height,
+      0
+    )
+    const newCompressedSize = choiceBPP == null ? originalSize : (totalNumPixels * choiceBPP) / 8
+    const savingsForBucket = originalSize - newCompressedSize
+    return acc + savingsForBucket
+  }, 0)
 
-  if (smallChoice === 'No') {
-    smallChoice = 'None'
-  }
-  if (mediumChoice === 'No') {
-    mediumChoice = 'None'
-  }
-  if (largeChoice === 'No') {
-    largeChoice = 'None'
-  }
-
-  let totalSavings = 0
-  buckets.forEach((bucket) => {
-    const savingsForBucket =
-      compressionBuckets[bucket].size -
-      compressionBuckets[bucket].size *
-        IMAGE_QUALITIES[compressionBuckets[bucket]?.selection]?.compressionRatio
-    totalSavings += savingsForBucket || 0
-  })
-
-  let totalImages = 0
-  totalImages += compressionBuckets.small?.images?.length || 0
-  totalImages += compressionBuckets.medium?.images?.length || 0
-  totalImages += compressionBuckets.large?.images?.length || 0
-
-  const smallBins = compressionBuckets.small?.sizes?.reduce(
-    (acc, fileSize) => {
-      let [bin1, bin2, bin3, bin4] = acc
-      if (fileSize < HISTOGRAM_THRESHOLDS[1]) {
-        bin1 += 1
-      } else if (fileSize < HISTOGRAM_THRESHOLDS[2]) {
-        bin2 += 1
-      } else if (fileSize < HISTOGRAM_THRESHOLDS[3]) {
-        bin3 += 1
-      } else {
-        bin4 += 1
-      }
-      return [bin1, bin2, bin3, bin4]
-    },
-    [0, 0, 0, 0]
-  ) || [0, 0, 0, 0]
-
-  const mediumBins = compressionBuckets.medium?.sizes?.reduce(
-    (acc, fileSize) => {
-      let [bin1, bin2, bin3, bin4] = acc
-      if (fileSize < HISTOGRAM_THRESHOLDS[1]) {
-        bin1 += 1
-      } else if (fileSize < HISTOGRAM_THRESHOLDS[2]) {
-        bin2 += 1
-      } else if (fileSize < HISTOGRAM_THRESHOLDS[3]) {
-        bin3 += 1
-      } else {
-        bin4 += 1
-      }
-      return [bin1, bin2, bin3, bin4]
-    },
-    [0, 0, 0, 0]
-  ) || [0, 0, 0, 0]
-
-  const largeBins = compressionBuckets.large?.sizes?.reduce(
-    (acc, fileSize) => {
-      let [bin1, bin2, bin3, bin4] = acc
-      if (fileSize < HISTOGRAM_THRESHOLDS[1]) {
-        bin1 += 1
-      } else if (fileSize < HISTOGRAM_THRESHOLDS[2]) {
-        bin2 += 1
-      } else if (fileSize < HISTOGRAM_THRESHOLDS[3]) {
-        bin3 += 1
-      } else {
-        bin4 += 1
-      }
-      return [bin1, bin2, bin3, bin4]
-    },
-    [0, 0, 0, 0]
-  ) || [0, 0, 0, 0]
+  const totalImages = Object.values(compressionBuckets).reduce(
+    (acc, bucket) => acc + bucket.images.length,
+    0
+  )
 
   const jobIdDark = useJobStore((state) => state.jobIdDark)
   const triggerDarkImagesIdentify = useJobStore((state) => state.triggerDarkImagesIdentify)
@@ -145,97 +82,57 @@ const CompressionSidebar = ({
             overflowY: 'auto',
           }}
         >
-          <Box>
-            <Box sx={{ fontSize: '20px' }}>Small Images Bucket</Box>
-            <Box
-              sx={{
-                fontSize: '14px',
-                lineHeight: '14px',
-                fontWeight: 300,
-                color: 'text.secondary',
-              }}
-            >
-              <Box component="span" sx={{ color: 'text.primary' }}>
-                {compressionBuckets.small?.images?.length} images
-              </Box>{' '}
-              each smaller than {BUCKET_THRESHOLDS.medium / 1_000_000} megapixels
-            </Box>
-            <Box component="span" sx={{ color: 'text.secondary' }}>
-              Compression choice:
-            </Box>{' '}
-            <Box
-              component="span"
-              sx={{ color: smallChoice === 'None' ? 'text.primary' : 'primary.main' }}
-            >
-              {smallChoice}
-            </Box>
-            <Box>
-              {smallBins.map((numInBin) => (
-                <>{numInBin} | </>
-              ))}
-            </Box>
-          </Box>
-          <Box>
-            <Box sx={{ fontSize: '20px' }}>Medium Images Bucket</Box>
-            <Box
-              sx={{
-                fontSize: '14px',
-                lineHeight: '14px',
-                fontWeight: 300,
-                color: 'text.secondary',
-              }}
-            >
-              <Box component="span" sx={{ color: 'text.primary' }}>
-                {compressionBuckets.medium?.images?.length} images
-              </Box>{' '}
-              each between {BUCKET_THRESHOLDS.medium / 1_000_000} and{' '}
-              {BUCKET_THRESHOLDS.large / 1_000_000} megapixels
-            </Box>
-            <Box component="span" sx={{ color: 'text.secondary' }}>
-              Compression choice:
-            </Box>{' '}
-            <Box
-              component="span"
-              sx={{ color: mediumChoice === 'None' ? 'text.primary' : 'primary.main' }}
-            >
-              {mediumChoice}
-            </Box>
-            <Box>
-              {mediumBins.map((numInBin) => (
-                <>{numInBin} | </>
-              ))}
-            </Box>
-          </Box>
-          <Box>
-            <Box sx={{ fontSize: '20px' }}>Large Images Bucket</Box>
-            <Box
-              sx={{
-                fontSize: '14px',
-                lineHeight: '14px',
-                fontWeight: 300,
-                color: 'text.secondary',
-              }}
-            >
-              <Box component="span" sx={{ color: 'text.primary' }}>
-                {compressionBuckets.large?.images?.length} images
-              </Box>{' '}
-              each larger than {BUCKET_THRESHOLDS.large / 1_000_000} megapixels
-            </Box>
-            <Box component="span" sx={{ color: 'text.secondary' }}>
-              Compression choice:
-            </Box>{' '}
-            <Box
-              component="span"
-              sx={{ color: largeChoice === 'None' ? 'text.primary' : 'primary.main' }}
-            >
-              {largeChoice}
-            </Box>
-            <Box>
-              {largeBins.map((numInBin) => (
-                <>{numInBin} | </>
-              ))}
-            </Box>
-          </Box>
+          {/* Bucket Summary Sections */}
+          {Object.entries(compressionBuckets).map(([bucketKey, bucket]) => {
+            const { selection, images } = compressionBuckets[bucketKey]
+            let megapixelBracketText = ''
+            if (bucket.bottomThreshold === 0) {
+              megapixelBracketText += 'each smaller than'
+              megapixelBracketText += ` ${compressionBuckets[bucket.bucketAbove].bottomThreshold / 1_000_000}`
+            } else if (bucket.bucketAbove === null) {
+              megapixelBracketText += 'each larger than'
+              megapixelBracketText += ` ${bucket.bottomThreshold / 1_000_000}`
+            } else {
+              megapixelBracketText += 'each between'
+              megapixelBracketText += ` ${bucket.bottomThreshold / 1_000_000}`
+              megapixelBracketText += ' and'
+              megapixelBracketText += ` ${compressionBuckets[bucket.bucketAbove].bottomThreshold / 1_000_000}`
+            }
+            megapixelBracketText += ' megapixels'
+
+            let choiceAmount = COMPRESSION_OPTIONS[selection]?.compressionAmount
+            if (choiceAmount === 'No') {
+              choiceAmount = 'None'
+            }
+            return (
+              <Box key={bucketKey}>
+                <Box sx={{ fontSize: '20px' }}>{bucket.name} Images Bucket</Box>
+                <Box
+                  sx={{
+                    fontSize: '14px',
+                    lineHeight: '14px',
+                    fontWeight: 300,
+                    color: 'text.secondary',
+                  }}
+                >
+                  <Box component="span" sx={{ color: 'text.primary' }}>
+                    {images.length} images
+                  </Box>{' '}
+                  {megapixelBracketText}
+                </Box>
+                <Box component="span" sx={{ color: 'text.secondary' }}>
+                  Compression choice:
+                </Box>{' '}
+                <Box
+                  component="span"
+                  sx={{ color: choiceAmount === 'None' ? 'text.primary' : 'primary.main' }}
+                >
+                  {choiceAmount}
+                </Box>
+              </Box>
+            )
+          })}
+
           <Box>
             <Box sx={{ fontSize: '20px' }}>Total Expected Savings</Box>
             <Box sx={{ color: totalSavings === 0 ? 'text.primary' : 'secondary.main' }}>

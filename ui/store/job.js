@@ -3,11 +3,20 @@ import { closest } from 'fastest-levenshtein'
 
 import { valueSetter } from './utils'
 import ROUTES, { JOB_PHASES, JOB_MODES } from '../constants/routes'
+import { MAXIMUM_COMPRESSION_OPTION } from '../constants/fileTypes'
 import ingestAPI from '../api/ingest'
 import observersAPI from '../api/observers'
 import { leafPath } from '../utilities/paths'
+import { resolutionToTotalPixels } from '../utilities/numbers'
 import useQueueStore from './queue'
 import useRootStore from './index'
+
+const compressionBucketBase = {
+  images: [],
+  selection: MAXIMUM_COMPRESSION_OPTION,
+  totalBytes: 0,
+  resolutions: [],
+}
 
 const initialState = {
   phase: JOB_PHASES.INPUTS,
@@ -32,9 +41,24 @@ const initialState = {
     applied: true,
   },
   compressionBuckets: {
-    small: { images: [], selection: 100, size: 0, sizes: [] },
-    medium: { images: [], selection: 100, size: 0, sizes: [] },
-    large: { images: [], selection: 100, size: 0, sizes: [] },
+    small: {
+      ...compressionBucketBase,
+      name: 'Small',
+      bottomThreshold: 0,
+      bucketAbove: 'medium',
+    },
+    medium: {
+      ...compressionBucketBase,
+      name: 'Medium',
+      bottomThreshold: 9_000_000,
+      bucketAbove: 'large',
+    },
+    large: {
+      ...compressionBucketBase,
+      name: 'Large',
+      bottomThreshold: 36_000_000,
+      bucketAbove: null,
+    },
   },
   jobId: null,
   jobIdDark: null,
@@ -76,53 +100,28 @@ const useJobStore = create((set, get) => ({
 
   triggerSampleImages: async (imagesToExclude = []) => {
     const { compressionBuckets } = get()
-    let possibleSmallImage = compressionBuckets.small?.images?.[0]
-    let possibleMediumImage = compressionBuckets.medium?.images?.[0]
-    let possibleLargeImage = compressionBuckets.large?.images?.[0]
 
-    if (possibleSmallImage && imagesToExclude.includes(possibleSmallImage)) {
-      compressionBuckets.small?.images?.find((image) => {
-        if (!imagesToExclude.includes(image)) {
-          possibleSmallImage = image
-          return true
-        }
-        return false
-      })
-    }
-    if (possibleMediumImage && imagesToExclude.includes(possibleMediumImage)) {
-      compressionBuckets.medium?.images?.find((image) => {
-        if (!imagesToExclude.includes(image)) {
-          possibleMediumImage = image
-          return true
-        }
-        return false
-      })
-    }
-    if (possibleLargeImage && imagesToExclude.includes(possibleLargeImage)) {
-      compressionBuckets.large?.images?.find((image) => {
-        if (!imagesToExclude.includes(image)) {
-          possibleLargeImage = image
-          return true
-        }
-        return false
-      })
-    }
+    const possibleSampleImages = Object.keys(compressionBuckets).map((bucketKey) => {
+      const imagesInBucket = compressionBuckets[bucketKey].images
+      if (imagesInBucket.length === 0) return null
+      // We try to filter out any that we don't want a sample of (e.g. dark images)
+      const possibleImage = imagesInBucket.find(
+        (image) => imagesToExclude.includes(image) === false
+      )
+      // But if that's not possible, we must have at least one sample, so take the first
+      if (!possibleImage) return imagesInBucket[0]
+      return possibleImage
+    })
 
-    const jobId = await ingestAPI.createSampleImages(
-      possibleSmallImage,
-      possibleMediumImage,
-      possibleLargeImage
-    )
+    const jobId = await ingestAPI.createSampleImages(...possibleSampleImages)
     set({ jobId })
   },
 
   triggerDarkImagesIdentify: async () => {
     const { compressionBuckets } = get()
-    const jobId = await ingestAPI.identifyDarkImages([
-      ...(compressionBuckets.small?.images || []),
-      ...(compressionBuckets.medium?.images || []),
-      ...(compressionBuckets.large?.images || []),
-    ])
+    const buckets = Object.values(compressionBuckets)
+    const allImagesFlatList = buckets.map((bucket) => bucket.images).flat(Infinity)
+    const jobId = await ingestAPI.identifyDarkImages(allImagesFlatList)
     set({ jobIdDark: jobId })
   },
 
@@ -143,7 +142,7 @@ const useJobStore = create((set, get) => ({
       observerCode
     )
 
-    if (jobMode === JOB_MODES.BY_IMAGE) {
+    if (jobMode === JOB_MODES.BY_IMAGE && jobIdDarkSample != null) {
       ingestAPI.deleteDarkSampleImages(jobIdDarkSample)
     }
 
@@ -274,5 +273,20 @@ const canParse = (state) => {
   return true
 }
 
-export { canParse, initialState }
+/** Find the bucket that this resolution fits into */
+const determineBucketForResolution = (compressionBuckets, resolution) => {
+  const megapixels = resolutionToTotalPixels(resolution)
+  const foundBucketKey = Object.keys(compressionBuckets).find((bucketKey) => {
+    const bucket = compressionBuckets[bucketKey]
+    const imageLargerThanBucketMin = megapixels >= bucket.bottomThreshold
+    if (!bucket.bucketAbove) return imageLargerThanBucketMin
+    return (
+      imageLargerThanBucketMin &&
+      megapixels < compressionBuckets[bucket.bucketAbove].bottomThreshold
+    )
+  })
+  return foundBucketKey
+}
+
+export { canParse, determineBucketForResolution, initialState }
 export default useJobStore

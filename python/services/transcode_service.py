@@ -77,8 +77,13 @@ class TranscodeService:
     MEDIUM_JPEG_QUALITY = 50
     HIGH_JPEG_QUALITY = 90
     MAX_JPEG_QUALITY = 100
+    JPEG_QUALITIES = [
+        LOW_JPEG_QUALITY,
+        MEDIUM_JPEG_QUALITY,
+        HIGH_JPEG_QUALITY,
+        MAX_JPEG_QUALITY,
+    ]
 
-    JPEG_QUALITIES = [20, 50, 90, 100]
     TEMP_SAMPLE_DIR = 'temp'
 
     def __init__(self):
