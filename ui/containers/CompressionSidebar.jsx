@@ -11,6 +11,7 @@ import AutorenewIcon from '@mui/icons-material/Autorenew'
 import useJobStore from '../store/job'
 import { leafPath } from '../utilities/paths'
 import { bytesToSize } from '../utilities/strings'
+import { calculateCompressedSizes } from '../utilities/numbers'
 import STATUSES from '../constants/statuses'
 import { COMPRESSION_OPTIONS } from '../constants/fileTypes'
 
@@ -18,6 +19,7 @@ import Sidebar from '../components/Sidebar'
 import SidebarHeader from '../components/SidebarHeader'
 import StyledButton from '../components/StyledButton'
 import TinyTextButton from '../components/TinyTextButton'
+import FilesizeSwarmHistogram from '../components/FilesizeSwarmHistogram'
 
 const CompressionSidebar = ({
   status,
@@ -37,16 +39,17 @@ const CompressionSidebar = ({
   const sourceFolder = useJobStore((state) => state.sourceFolder)
   const compressionBuckets = useJobStore((state) => state.compressionBuckets)
 
-  const totalSavings = Object.values(compressionBuckets).reduce((acc, bucket) => {
-    const originalSize = bucket.totalBytes
-    const choiceBPP = COMPRESSION_OPTIONS[bucket.selection]?.bitsPerPixel
-    const totalNumPixels = bucket.resolutions.reduce(
-      (acc, [width, height]) => acc + width * height,
-      0
-    )
-    const newCompressedSize = choiceBPP == null ? originalSize : (totalNumPixels * choiceBPP) / 8
-    const savingsForBucket = originalSize - newCompressedSize
-    return acc + savingsForBucket
+  const allOriginalSizes = []
+  const allCompressedSizes = []
+  Object.values(compressionBuckets).forEach((bucket) => {
+    const { selection, fileSizes, resolutions } = bucket
+    allOriginalSizes.push(...fileSizes)
+    const compressedSizes = calculateCompressedSizes(selection, fileSizes, resolutions)
+    allCompressedSizes.push(...compressedSizes)
+  })
+
+  const totalSavings = allOriginalSizes.reduce((acc, size, index) => {
+    return acc + size - allCompressedSizes[index]
   }, 0)
 
   const totalImages = Object.values(compressionBuckets).reduce(
@@ -84,7 +87,8 @@ const CompressionSidebar = ({
         >
           {/* Bucket Summary Sections */}
           {Object.entries(compressionBuckets).map(([bucketKey, bucket]) => {
-            const { selection, images } = compressionBuckets[bucketKey]
+            const { selection, images, fileSizes, resolutions } = bucket
+
             let megapixelBracketText = ''
             if (bucket.bottomThreshold === 0) {
               megapixelBracketText += 'each smaller than'
@@ -104,6 +108,9 @@ const CompressionSidebar = ({
             if (choiceAmount === 'No') {
               choiceAmount = 'None'
             }
+
+            const compressedSizes = calculateCompressedSizes(selection, fileSizes, resolutions)
+
             return (
               <Box key={bucketKey}>
                 <Box sx={{ fontSize: '20px' }}>{bucket.name} Images Bucket</Box>
@@ -129,15 +136,29 @@ const CompressionSidebar = ({
                 >
                   {choiceAmount}
                 </Box>
+                <Box sx={{ marginTop: 0.5, marginRight: 1 }}>
+                  <FilesizeSwarmHistogram sizesBefore={fileSizes} sizesAfter={compressedSizes} />
+                </Box>
               </Box>
             )
           })}
 
           <Box>
-            <Box sx={{ fontSize: '20px' }}>Total Expected Savings</Box>
-            <Box sx={{ color: totalSavings === 0 ? 'text.primary' : 'secondary.main' }}>
-              {totalSavings === 0 ? '' : '~'}
-              {bytesToSize(totalSavings)}
+            <Box sx={{ fontSize: '20px' }}>
+              Total Expected Savings:{' '}
+              <Box
+                component="span"
+                sx={{ color: totalSavings === 0 ? 'text.primary' : 'primary.main' }}
+              >
+                {totalSavings === 0 ? '' : '~'}
+                {bytesToSize(totalSavings)}
+              </Box>
+            </Box>
+            <Box sx={{ marginTop: 0.5, marginRight: 1 }}>
+              <FilesizeSwarmHistogram
+                sizesBefore={allOriginalSizes}
+                sizesAfter={allCompressedSizes}
+              />
             </Box>
           </Box>
 
@@ -185,7 +206,7 @@ const CompressionSidebar = ({
               <RadioGroup
                 value={`${colorCorrectApplied}`}
                 onChange={(event) => setColorCorrectApplied(event.target.value === 'true')}
-                sx={{ marginTop: 0.5, marginLeft: 0.5, marginBottom: 0.5 }}
+                sx={{ marginTop: 0.5, marginLeft: 0.5, marginBottom: 0.5, position: 'relative' }}
               >
                 <FormControlLabel
                   label="No Correction"

@@ -31,7 +31,7 @@ const CompressionBucketsList = ({
         const sampleImagesForBucket = sampleImages.filter(
           (sample) => sample.bucket_name === bucketKey
         )
-        const originalBytes = bucket.totalBytes
+        const originalSize = bucket.fileSizes.reduce((acc, size) => acc + size, 0)
         const totalNumPixels = bucket.resolutions.reduce(
           (acc, [width, height]) => acc + width * height,
           0
@@ -49,11 +49,11 @@ const CompressionBucketsList = ({
               )}
               {sampleImagesForBucket.map((image) => {
                 const option = COMPRESSION_OPTIONS[image.jpeg_quality]
-                const outputBytes =
+                const outputSize =
                   option.bitsPerPixel == null
-                    ? originalBytes
+                    ? originalSize
                     : (option.bitsPerPixel * totalNumPixels) / 8
-                const savingsForBucketWithOption = originalBytes - outputBytes
+                const savingsForBucketWithOption = originalSize - outputSize
                 return (
                   <CompressionOption
                     key={image.file_name}

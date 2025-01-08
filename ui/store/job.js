@@ -14,8 +14,8 @@ import useRootStore from './index'
 const compressionBucketBase = {
   images: [],
   selection: MAXIMUM_COMPRESSION_OPTION,
-  totalBytes: 0,
   resolutions: [],
+  fileSizes: [],
 }
 
 const initialState = {

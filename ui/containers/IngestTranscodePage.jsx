@@ -93,14 +93,14 @@ const LinkageAnnotationPage = () => {
   const setCompressionBuckets = useJobStore((state) => state.setCompressionBuckets)
   const setCompressionSelection = useJobStore((state) => state.setCompressionSelection)
   const moveToCompressionPage = () => {
-    // Build out new buckets from all existing images
+    // This is where we build compression buckets for incoming images
     const newBuckets = dumbClone(initialState.compressionBuckets)
     mediaGroups.forEach((group) =>
       group.mediaList.forEach((media) => {
         const bucketForMedia = determineBucketForResolution(compressionBuckets, media.resolution)
         newBuckets[bucketForMedia].images.push(media.filePath)
-        newBuckets[bucketForMedia].totalBytes += media.fileSize
         newBuckets[bucketForMedia].resolutions.push([media.width, media.height])
+        newBuckets[bucketForMedia].fileSizes.push(media.fileSize)
       })
     )
     setCompressionBuckets(newBuckets)

@@ -1,3 +1,5 @@
+import { COMPRESSION_OPTIONS } from '../constants/fileTypes'
+
 export const determineNonOverlappingTracksForRegions = (regions) => {
   const trackForRegion = []
   regions.forEach((region, index) => {
@@ -55,4 +57,17 @@ export const doRegionsOverlap = (start1, end1, start2, end2) => {
 export const resolutionToTotalPixels = (resolution) => {
   const [width, height] = resolution.split('x')
   return parseInt(width, 10) * parseInt(height, 10)
+}
+
+export const megabytes = (n) => n * 1024 ** 2
+
+export const calculateCompressedSizes = (compressionSelection, fileSizes, resolutions) => {
+  const choiceBPP = COMPRESSION_OPTIONS[compressionSelection]?.bitsPerPixel
+  const compressedSizes = resolutions.map(([width, height], index) => {
+    if (choiceBPP == null) {
+      return fileSizes[index]
+    }
+    return (width * height * choiceBPP) / 8
+  })
+  return compressedSizes
 }
