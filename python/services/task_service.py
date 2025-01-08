@@ -41,6 +41,7 @@ class TaskService:
         data_list = [
             {
                 "id": task.id,
+                "original_file_path": task.transcode_settings.get('file_path'),
                 "file_name": task.transcode_settings.get('new_name'),
                 "jpeg_quality": task.transcode_settings.get('jpeg_quality'),
                 "bucket_name": task.transcode_settings.get('input_height'),

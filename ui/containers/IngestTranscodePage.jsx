@@ -140,8 +140,43 @@ const LinkageAnnotationPage = () => {
     return () => clearInterval(intervalId)
   }, [phase, jobId])
 
-  const whenAllImagesHaveLoaded = async () => {
-    await ingestAPI.deleteSampleImages(jobId)
+  /* Poll-Factory for updating one sample image at a time
+   * To reduce complexity: We do not currently plan to support skipping past
+   * identified dark images. We will move to the literal next image.
+   */
+  const setCompressionSampleReloading = useJobStore((state) => state.setCompressionSampleReloading)
+  const incrementSampleImage = async (bucketKey, currentImageIndex) => {
+    const bucket = compressionBuckets[bucketKey]
+    const nextImageIndex = bucket.images.length > currentImageIndex + 1 ? currentImageIndex + 1 : 0
+    const nextImagePath = bucket.images[nextImageIndex]
+
+    setCompressionSampleReloading(bucketKey, true)
+    const oneSampleJobId = await ingestAPI.createOneSampleImageSet(bucketKey, nextImagePath)
+    let intervalId
+
+    const checkForImages = async () => {
+      const { status, error } = await ingestAPI.jobStatus(oneSampleJobId)
+      if (status === STATUSES.QUEUED) return
+      if (status === STATUSES.INCOMPLETE) {
+        if (error) {
+          clearInterval(intervalId)
+        }
+        return
+      }
+
+      // Status must be Completed at this point
+      clearInterval(intervalId)
+      const sampleData = await ingestAPI.getJobSampleData(oneSampleJobId)
+
+      const newSampleImages = [
+        ...sampleImages.filter((image) => image.bucket_name !== bucketKey),
+        ...sampleData,
+      ]
+      setSampleImages(newSampleImages)
+      setCompressionSampleReloading(bucketKey, false)
+    }
+
+    intervalId = setInterval(checkForImages, 1000)
   }
 
   /* Poll for Dark Image Numbers, handle statuses */
@@ -615,7 +650,7 @@ const LinkageAnnotationPage = () => {
               compressionBuckets={compressionBuckets}
               setCompressionSelection={setCompressionSelection}
               sampleImages={sampleImages}
-              onImagesLoaded={whenAllImagesHaveLoaded}
+              incrementSampleImage={incrementSampleImage}
             />
           )}
         </Box>

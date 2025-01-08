@@ -1,5 +1,7 @@
 import { useState, useEffect, Fragment } from 'react'
 import Box from '@mui/material/Box'
+import Button from '@mui/material/Button'
+import SkipNextIcon from '@mui/icons-material/SkipNext'
 
 import { baseURL } from '../api/config'
 import { COMPRESSION_OPTIONS } from '../constants/fileTypes'
@@ -10,7 +12,10 @@ const CompressionBucketsList = ({
   setCompressionSelection,
   sampleImages,
   onImagesLoaded,
+  incrementSampleImage,
 }) => {
+  const onImagesLoadedFunc = onImagesLoaded || (() => {})
+
   const [imagesToLoad, setImagesToLoad] = useState({})
   useEffect(() => {
     setImagesToLoad(Object.fromEntries(sampleImages.map((sample) => [sample.file_name, false])))
@@ -21,7 +26,7 @@ const CompressionBucketsList = ({
       Object.values(imagesToLoad).length > 0 &&
       Object.values(imagesToLoad).every((loaded) => loaded === true)
     ) {
-      onImagesLoaded()
+      onImagesLoadedFunc()
     }
   }, [JSON.stringify(imagesToLoad)])
 
@@ -31,6 +36,9 @@ const CompressionBucketsList = ({
         const sampleImagesForBucket = sampleImages.filter(
           (sample) => sample.bucket_name === bucketKey
         )
+        const currentSampleImageIndex = bucket.images.findIndex(
+          (filePath) => filePath === sampleImagesForBucket[0]?.original_file_path
+        )
         const originalSize = bucket.fileSizes.reduce((acc, size) => acc + size, 0)
         const totalNumPixels = bucket.resolutions.reduce(
           (acc, [width, height]) => acc + width * height,
@@ -38,8 +46,33 @@ const CompressionBucketsList = ({
         )
         return (
           <Fragment key={bucketKey}>
-            <Box sx={{ fontSize: '20px', marginLeft: 1, marginTop: index !== 0 ? 1 : 0 }}>
+            <Box
+              sx={{
+                fontSize: '20px',
+                marginLeft: 1,
+                marginTop: index !== 0 ? 1 : 0,
+                display: 'flex',
+                alignItems: 'center',
+              }}
+            >
               {bucket.name} Images Bucket
+              {bucket.images.length > 0 && (
+                <Button
+                  size="small"
+                  color="tertiary"
+                  sx={{ marginLeft: 1, paddingLeft: 0.75, textTransform: 'none' }}
+                  onClick={() => incrementSampleImage(bucketKey, currentSampleImageIndex)}
+                  disabled={bucket.sampleReloading}
+                >
+                  {bucket.sampleReloading ? (
+                    'Loading...'
+                  ) : (
+                    <>
+                      Try Next Image <SkipNextIcon fontSize="small" />
+                    </>
+                  )}
+                </Button>
+              )}
             </Box>
             <Box sx={{ display: 'flex', gap: 1, overflowX: 'auto', padding: 1, paddingTop: 0 }}>
               {bucket.images.length === 0 && (

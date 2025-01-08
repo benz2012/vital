@@ -197,7 +197,7 @@ def create_sample_images():
 @tryable_json_endpoint
 def delete_sample_images(job_id):
     sample_image_dir = transcode_service.get_sample_image_dir()
-    return transcode_service.delete_sample_images(job_id, sample_image_dir)
+    return transcode_service.delete_sample_images(None, sample_image_dir)
 
 
 @bp.route('/dark_sample/<int:job_id>', methods=["DELETE"])

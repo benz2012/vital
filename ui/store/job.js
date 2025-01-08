@@ -16,6 +16,7 @@ const compressionBucketBase = {
   selection: MAXIMUM_COMPRESSION_OPTION,
   resolutions: [],
   fileSizes: [],
+  sampleReloading: false,
 }
 
 const initialState = {
@@ -91,10 +92,12 @@ const useJobStore = create((set, get) => ({
     set({ phase: nextPhase, jobId: null, jobIdDark: null, jobIdDarkSample: null })
     if (nextPhase === JOB_PHASES.PARSE) {
       get().triggerParse()
+      ingestAPI.deleteSampleImages() // clean this up periodically instead of react to changes on every image generation
     } else if (nextPhase === JOB_PHASES.CHOOSE_OPTIONS) {
       get().triggerSampleImages()
     } else if (nextPhase === JOB_PHASES.EXECUTE) {
       get().triggerExecute(jobIdDarkSample)
+      ingestAPI.deleteSampleImages() // clean this up periodically instead of react to changes on every image generation
     }
   },
 
@@ -250,6 +253,17 @@ const useJobStore = create((set, get) => ({
       [size]: {
         ...compressionBuckets[size],
         selection: quality,
+      },
+    }
+    set({ compressionBuckets: newBuckets })
+  },
+  setCompressionSampleReloading: (bucketKey, value) => {
+    const { compressionBuckets } = get()
+    const newBuckets = {
+      ...compressionBuckets,
+      [bucketKey]: {
+        ...compressionBuckets[bucketKey],
+        sampleReloading: value,
       },
     }
     set({ compressionBuckets: newBuckets })

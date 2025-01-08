@@ -60,8 +60,14 @@ const createSampleImages = async (small, medium, large, xlarge) => {
   })
   return data?.job_id
 }
+const createOneSampleImageSet = async (bucketKey, filePath) => {
+  const { data } = await postJSONWithResponse(`${ingestURL}/sample`, {
+    [`${bucketKey}_image_file_path`]: filePath,
+  })
+  return data?.job_id
+}
 const getJobSampleData = (jobId) => getJSON(`${ingestURL}/job/${jobId}/sample_file_data`)
-const deleteSampleImages = (jobId) => deleteThis(`${ingestURL}/sample/${jobId}`)
+const deleteSampleImages = () => deleteThis(`${ingestURL}/sample/000`)
 
 const identifyDarkImages = async (paths) => {
   const { data } = await postJSONWithResponse(`${ingestURL}/dark`, {
@@ -117,6 +123,7 @@ export default {
   validateNonExistence,
   getJobSampleData,
   createSampleImages,
+  createOneSampleImageSet,
   deleteSampleImages,
   identifyDarkImages,
   getDarkData,
