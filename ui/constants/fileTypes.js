@@ -1,5 +1,6 @@
 const ROOT_FOLDER = '__ROOT__'
 
+// This list of JPEG qualities needs to match the TranscodeService.JPEG_QUALITIES on the backend
 const MAXIMUM_COMPRESSION_OPTION = 100
 const COMPRESSION_OPTIONS = {
   20: {

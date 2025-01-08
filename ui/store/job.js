@@ -56,6 +56,12 @@ const initialState = {
     large: {
       ...compressionBucketBase,
       name: 'Large',
+      bottomThreshold: 22_000_000,
+      bucketAbove: 'xlarge',
+    },
+    xlarge: {
+      ...compressionBucketBase,
+      name: 'Extra Large',
       bottomThreshold: 36_000_000,
       bucketAbove: null,
     },

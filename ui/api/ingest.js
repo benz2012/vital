@@ -51,11 +51,12 @@ const validateNonExistence = async (mode, sourceFolder, filePaths) => {
 }
 
 // Sample Image Methods
-const createSampleImages = async (small, medium, large) => {
+const createSampleImages = async (small, medium, large, xlarge) => {
   const { data } = await postJSONWithResponse(`${ingestURL}/sample`, {
     small_image_file_path: small || undefined,
     medium_image_file_path: medium || undefined,
     large_image_file_path: large || undefined,
+    xlarge_image_file_path: xlarge || undefined,
   })
   return data?.job_id
 }

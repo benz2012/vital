@@ -73,6 +73,7 @@ class TranscodeService:
     }
     TRNSC_2_TRNSFR_BNDWTHS = list(TRNSC_2_TRNSFR_PRGS_RATIOS.keys())
 
+    # This list of JPEG qualities needs to match the COMPRESSION_OPTIONS on the frontend
     LOW_JPEG_QUALITY = 20
     MEDIUM_JPEG_QUALITY = 50
     HIGH_JPEG_QUALITY = 90
@@ -132,7 +133,13 @@ class TranscodeService:
         temp_sample_dir = os.path.join(thumbnail_dir, self.TEMP_SAMPLE_DIR)
         return temp_sample_dir
 
-    def create_sample_images(self, small_image_file_path=None, medium_image_file_path=None, large_image_file_path=None):
+    def create_sample_images(
+            self,
+            small_image_file_path=None,
+            medium_image_file_path=None,
+            large_image_file_path=None,
+            xlarge_image_file_path=None
+        ):
         job_id = self.job_service.create_job(JobType.SAMPLE, JobStatus.INCOMPLETE, {
                 "source_dir": '',
                 "media_type": MediaType.IMAGE.value,
@@ -146,6 +153,9 @@ class TranscodeService:
 
         if large_image_file_path:
             self.create_sample_tasks(job_id, large_image_file_path, 'large')
+
+        if xlarge_image_file_path:
+            self.create_sample_tasks(job_id, xlarge_image_file_path, 'xlarge')
 
         threading.Thread(target=self.run_sample_tasks, args=(job_id,)).start()
         return job_id

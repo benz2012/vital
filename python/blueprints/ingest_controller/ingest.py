@@ -182,8 +182,14 @@ def create_sample_images():
     small_image_file_path = payload.get('small_image_file_path', None)
     medium_image_file_path = payload.get('medium_image_file_path', None)
     large_image_file_path = payload.get('large_image_file_path', None)
+    xlarge_image_file_path = payload.get('xlarge_image_file_path', None)
 
-    job_id = transcode_service.create_sample_images(small_image_file_path, medium_image_file_path, large_image_file_path)
+    job_id = transcode_service.create_sample_images(
+        small_image_file_path,
+        medium_image_file_path,
+        large_image_file_path,
+        xlarge_image_file_path
+    )
     return {"job_id": job_id}
 
 
