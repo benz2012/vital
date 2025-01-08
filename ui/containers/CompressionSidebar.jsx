@@ -127,18 +127,25 @@ const CompressionSidebar = ({
                   </Box>{' '}
                   {megapixelBracketText}
                 </Box>
-                <Box component="span" sx={{ color: 'text.secondary' }}>
-                  Compression choice:
-                </Box>{' '}
-                <Box
-                  component="span"
-                  sx={{ color: choiceAmount === 'None' ? 'text.primary' : 'primary.main' }}
-                >
-                  {choiceAmount}
-                </Box>
-                <Box sx={{ marginTop: 0.5, marginRight: 1 }}>
-                  <FilesizeSwarmHistogram sizesBefore={fileSizes} sizesAfter={compressedSizes} />
-                </Box>
+                {images.length > 0 && (
+                  <>
+                    <Box component="span" sx={{ color: 'text.secondary' }}>
+                      Compression choice:
+                    </Box>{' '}
+                    <Box
+                      component="span"
+                      sx={{ color: choiceAmount === 'None' ? 'text.primary' : 'primary.main' }}
+                    >
+                      {choiceAmount}
+                    </Box>
+                    <Box sx={{ marginTop: 0.5, marginRight: 1 }}>
+                      <FilesizeSwarmHistogram
+                        sizesBefore={fileSizes}
+                        sizesAfter={compressedSizes}
+                      />
+                    </Box>
+                  </>
+                )}
               </Box>
             )
           })}
