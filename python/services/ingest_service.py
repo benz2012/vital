@@ -137,28 +137,37 @@ class IngestService:
         task_tuple_arr.append((
             report_data.source_folder_path,
             report_data.original_folder_path,
-            report_data.optimized_folder_path
+            report_data.optimized_folder_path,
+            # blank slot for color corrected
         ))
         task_tuple_arr.append((
             IngestService.size_string(report_data.source_folder_size),
             IngestService.size_string(report_data.original_folder_size),
             IngestService.size_string(report_data.optimized_folder_size),
+            # blank slot for color corrected
         ))
         task_tuple_arr.append((
             f'{report_data.source_folder_media_count} files',
             f'{report_data.original_folder_media_count} files',
             f'{report_data.optimized_folder_media_count} files',
+            # blank slot for color corrected
         ))
 
         for task in tasks:
             transcode_settings = task.transcode_settings
             old_name = transcode_settings['file_path'].replace(source_dir, '').lstrip(os.path.sep)
             new_name = os.path.join(os.path.dirname(old_name), transcode_settings['new_name'])
-            task_tuple_arr.append((old_name, old_name, new_name))
+            was_color_corrected = transcode_settings['is_dark']
+            task_tuple_arr.append((
+                old_name,
+                old_name,
+                new_name,
+                was_color_corrected
+            ))
 
         csv_df = pd.DataFrame(
             task_tuple_arr,
-            columns=["Source Folder", "Originals Destination", "Optimized Destination"]
+            columns=["Source Folder", "Originals Destination", "Optimized Destination", "Color Corrected"]
         )
 
         basename = os.path.basename(source_dir)
