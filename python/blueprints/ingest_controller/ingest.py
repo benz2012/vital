@@ -215,15 +215,6 @@ def delete_old_tasks():
     return {"deleted_ids": deleted_ids}
 
 
-@bp.route('/export_report', methods=["GET"])
-@tryable_json_endpoint
-def export_report():
-    job_id = request.args.get('job_id')
-    output_folder = unquote(request.args.get('output_folder'))
-
-    return ingest_service.export_report(job_id, output_folder)
-
-
 @bp.route('/dark', methods=['POST'])
 @tryable_json_endpoint
 def identify_dark_images():
@@ -246,3 +237,20 @@ def create_dark_samples():
     image_paths = payload['image_paths']
     job_id = color_correct_service.create_dark_sample_images(image_paths)
     return {"job_id": job_id}
+
+
+@bp.route('/export_report', methods=["GET"])
+@tryable_json_endpoint
+def export_report():
+    job_id = request.args.get('job_id')
+    output_folder = unquote(request.args.get('output_folder'))
+
+    return ingest_service.export_report(job_id, output_folder)
+
+
+@bp.route('/export_blip', methods=["GET"])
+@tryable_json_endpoint
+def export_blip():
+    output_folder = unquote(request.args.get('output_folder'))
+
+    return ingest_service.export_blip(output_folder)

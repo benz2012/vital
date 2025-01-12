@@ -20,6 +20,8 @@ const exportReportCSV = (jobId, folderPath) =>
   getJSON(
     `${ingestURL}/export_report?job_id=${jobId}&output_folder=${encodeURIComponent(folderPath)}`
   )
+const exportBlipCSV = (folderPath) =>
+  getJSON(`${ingestURL}/export_blip?output_folder=${encodeURIComponent(folderPath)}`)
 const cleanUpJobs = () => postJSON(`${ingestURL}/clean_up_jobs`)
 
 // Metadata Methods
@@ -115,6 +117,7 @@ export default {
   getIncompleteJobs,
   getCompleteJobs,
   exportReportCSV,
+  exportBlipCSV,
   cleanUpJobs,
   countFiles,
   parse,

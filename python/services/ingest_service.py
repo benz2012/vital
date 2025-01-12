@@ -1,5 +1,6 @@
 import os
 import threading
+import json
 import pandas as pd
 from datetime import datetime
 
@@ -183,6 +184,41 @@ class IngestService:
             report_data.output_file = output_file
             self.job_service.update_report_data(job_id, report_data)
         return file_created_successfully
+
+    def export_blip(self, output_folder):
+        all_completed_jobs = self.job_service.get_jobs(JobType.TRANSCODE, True)
+
+        grouped_jobs = {}
+        for job in all_completed_jobs:
+            # TODO: this should maybe be the folder date...
+            completed_date = datetime.fromisoformat(job['completed_date'])
+            completed_date_str = completed_date.strftime("%Y-%m-%d")
+            job_data = json.loads(job['data'])
+            job_type = MediaType[job_data['media_type'].upper()]
+            observer_code = job_data['observer_code']
+
+            job_date_obsv_id = f'{completed_date_str}-{observer_code}'
+            if job_date_obsv_id not in grouped_jobs:
+                grouped_jobs[job_date_obsv_id] = [
+                    observer_code,
+                    completed_date_str,
+                    job_type.value,
+                    True
+                ]
+            else:
+                prev_seen_type = grouped_jobs[job_date_obsv_id][2]
+                if prev_seen_type != job_type.value:
+                    grouped_jobs[job_date_obsv_id][2] = 'both'
+
+        job_tuple_arr = [tuple(entry) for entry in grouped_jobs.values()]
+        csv_df = pd.DataFrame(
+            job_tuple_arr,
+            columns=["Observer Code", "Date", "Media Type", "Resize"]
+        )
+
+        output_timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        output_file = os.path.join(output_folder, f'Blip_Export_{output_timestamp}.csv')
+        csv_df.to_csv(output_file, index=False)
 
     @staticmethod
     def size_string(bytes):

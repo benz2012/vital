@@ -13,6 +13,7 @@ import CloseIcon from '@mui/icons-material/Close'
 import PlayArrowIcon from '@mui/icons-material/PlayArrow'
 import ScheduleIcon from '@mui/icons-material/Schedule'
 import DeleteSweepIcon from '@mui/icons-material/DeleteSweep'
+import { Grid4x4 } from '@mui/icons-material'
 
 import useStore from '../store'
 import useQueueStore, { canStart } from '../store/queue'
@@ -88,8 +89,8 @@ const JobQueue = () => {
     setConfirmationDialogProps({
       title: 'Clean Up Jobs',
       body: `This action will:
-      Archive all jobs for which a Report CSV has been exported.
-      Archive all jobs older than 10 days.
+      - Archive all jobs for which a Report CSV has been exported.
+      - Archive all jobs older than 10 days.
 
       Are you sure you want to do this?`,
       onConfirm: async () => {
@@ -98,6 +99,13 @@ const JobQueue = () => {
       },
     })
     setConfirmationDialogOpen(true)
+  }
+
+  const triggerBlipExport = async () => {
+    const filePath = await window.api.selectFile(FILE_TYPES.FOLDER)
+    if (!filePath) return
+    const result = await ingestAPI.exportBlipCSV(filePath)
+    return result
   }
 
   /* Task Details Data Logic */
@@ -274,15 +282,26 @@ const JobQueue = () => {
 
         <Typography variant="h6" mt={2} sx={{ display: 'flex', justifyContent: 'space-between' }}>
           Complete Jobs
-          <Button
-            color="warning"
-            sx={{ textTransform: 'none' }}
-            endIcon={<DeleteSweepIcon />}
-            onClick={cleanUpJobs}
-            disabled={completeJobs.length === 0}
-          >
-            Clean Up Jobs
-          </Button>
+          <Box>
+            <Button
+              color="success"
+              sx={{ textTransform: 'none' }}
+              endIcon={<Grid4x4 />}
+              onClick={triggerBlipExport}
+              disabled={completeJobs.length === 0}
+            >
+              Export Blip CSV
+            </Button>
+            <Button
+              color="warning"
+              sx={{ textTransform: 'none' }}
+              endIcon={<DeleteSweepIcon />}
+              onClick={cleanUpJobs}
+              disabled={completeJobs.length === 0}
+            >
+              Clean Up Jobs
+            </Button>
+          </Box>
         </Typography>
         {completeJobs.length === 0 && <Box sx={{ fontStyle: 'italic' }}>None</Box>}
 
