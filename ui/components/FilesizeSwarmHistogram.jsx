@@ -44,7 +44,7 @@ const FilesizeSwarmHistogram = ({ sizesBefore, sizesAfter }) => {
 
   const binsBefore = sizesBefore.reduce(binReducer, makeBlankBin()).reverse()
   const binsAfter = sizesAfter.reduce(binReducer, makeBlankBin()).reverse()
-  const maxCount = sizesBefore.length
+  const maxCount = Math.max(...binsBefore, ...binsAfter)
 
   return (
     <Box
