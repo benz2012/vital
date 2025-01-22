@@ -101,10 +101,10 @@ const JobQueue = () => {
     setConfirmationDialogOpen(true)
   }
 
-  const triggerBlipExport = async () => {
+  const triggerFlowSheetExport = async () => {
     const filePath = await window.api.selectFile(FILE_TYPES.FOLDER)
     if (!filePath) return
-    const result = await ingestAPI.exportBlipCSV(filePath)
+    const result = await ingestAPI.exportFlowSheet(filePath)
     return result
   }
 
@@ -287,10 +287,10 @@ const JobQueue = () => {
               color="success"
               sx={{ textTransform: 'none' }}
               endIcon={<Grid4x4 />}
-              onClick={triggerBlipExport}
+              onClick={triggerFlowSheetExport}
               disabled={completeJobs.length === 0}
             >
-              Export Blip CSV
+              Export PA Flow CSV
             </Button>
             <Button
               color="warning"

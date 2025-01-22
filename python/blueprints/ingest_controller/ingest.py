@@ -248,9 +248,9 @@ def export_report():
     return ingest_service.export_report(job_id, output_folder)
 
 
-@bp.route('/export_blip', methods=["GET"])
+@bp.route('/export_flowsheet', methods=["GET"])
 @tryable_json_endpoint
-def export_blip():
+def export_flowsheet():
     output_folder = unquote(request.args.get('output_folder'))
 
-    return ingest_service.export_blip(output_folder)
+    return ingest_service.export_flowsheet(output_folder)

@@ -185,7 +185,7 @@ class IngestService:
             self.job_service.update_report_data(job_id, report_data)
         return file_created_successfully
 
-    def export_blip(self, output_folder):
+    def export_flowsheet(self, output_folder):
         all_completed_jobs = self.job_service.get_jobs(JobType.TRANSCODE, True)
 
         grouped_jobs = {}
@@ -203,7 +203,7 @@ class IngestService:
                     observer_code,
                     completed_date_str,
                     job_type.value,
-                    True
+                    'TRUE'
                 ]
             else:
                 prev_seen_type = grouped_jobs[job_date_obsv_id][2]
@@ -213,11 +213,11 @@ class IngestService:
         job_tuple_arr = [tuple(entry) for entry in grouped_jobs.values()]
         csv_df = pd.DataFrame(
             job_tuple_arr,
-            columns=["Observer Code", "Date", "Media Type", "Resize"]
+            columns=["Observer Code", "Date", "Media type", "Re-size"]
         )
 
         output_timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        output_file = os.path.join(output_folder, f'Blip_Export_{output_timestamp}.csv')
+        output_file = os.path.join(output_folder, f'PA_FlowSheet_Export_{output_timestamp}.csv')
         csv_df.to_csv(output_file, index=False)
 
     @staticmethod
