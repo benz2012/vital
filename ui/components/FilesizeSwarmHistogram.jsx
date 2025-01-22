@@ -82,7 +82,7 @@ const FilesizeSwarmHistogram = ({ sizesBefore, sizesAfter }) => {
                 sx={{
                   position: 'absolute',
                   width: `calc(100% - ${TICK_WIDTH}px)`,
-                  borderBottom: `1px solid ${theme.palette.action.hover}`,
+                  borderBottom: `1px solid ${theme.palette.action.selected}`,
                   right: 0,
                   transform: `translateY(-${VISUAL_FONT_HEIGHT / 2 + 1}px)`,
                 }}
