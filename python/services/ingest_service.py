@@ -16,6 +16,7 @@ from services.image_metadata_service import ImageMetadataService
 
 from utils.constants import image_extensions, video_extensions
 from utils.prints import print_err
+from utils.file_path import extract_catalog_folder_info
 
 class IngestService:
 
@@ -190,12 +191,15 @@ class IngestService:
 
         grouped_jobs = {}
         for job in all_completed_jobs:
-            # TODO: this should maybe be the folder date...
-            completed_date = datetime.fromisoformat(job['completed_date'])
-            completed_date_str = completed_date.strftime("%Y-%m-%d")
             job_data = json.loads(job['data'])
             job_type = MediaType[job_data['media_type'].upper()]
             observer_code = job_data['observer_code']
+
+            source_dir = job_data['source_dir']
+            source_dir_name = os.path.basename(source_dir)
+            folder_year, folder_month, folder_day, _ = extract_catalog_folder_info(source_dir_name)
+            completed_date = datetime.strptime(f"{folder_year}-{folder_month}-{folder_day}", "%Y-%m-%d")
+            completed_date_str = completed_date.strftime("%Y-%m-%d")
 
             # ALL_CODES mode means do not filter out any observer codes
             # otherwise, only include jobs that match the target observer code
