@@ -185,7 +185,7 @@ class IngestService:
             self.job_service.update_report_data(job_id, report_data)
         return file_created_successfully
 
-    def export_flowsheet(self, output_folder):
+    def export_flowsheet(self, output_folder, target_observer_code):
         all_completed_jobs = self.job_service.get_jobs(JobType.TRANSCODE, True)
 
         grouped_jobs = {}
@@ -196,6 +196,11 @@ class IngestService:
             job_data = json.loads(job['data'])
             job_type = MediaType[job_data['media_type'].upper()]
             observer_code = job_data['observer_code']
+
+            # ALL_CODES mode means do not filter out any observer codes
+            # otherwise, only include jobs that match the target observer code
+            if target_observer_code != 'ALL_CODES' and observer_code != target_observer_code:
+                continue
 
             job_date_obsv_id = f'{completed_date_str}-{observer_code}'
             if job_date_obsv_id not in grouped_jobs:

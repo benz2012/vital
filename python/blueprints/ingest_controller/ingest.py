@@ -252,5 +252,6 @@ def export_report():
 @tryable_json_endpoint
 def export_flowsheet():
     output_folder = unquote(request.args.get('output_folder'))
+    observer_code = unquote(request.args.get('observer'))
 
-    return ingest_service.export_flowsheet(output_folder)
+    return ingest_service.export_flowsheet(output_folder, observer_code)

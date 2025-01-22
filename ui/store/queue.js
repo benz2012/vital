@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 
+import { valueSetter } from './utils'
 import ingestAPI from '../api/ingest'
 import queueAPI from '../api/queue'
 import STATUSES from '../constants/statuses'
@@ -10,6 +11,7 @@ const initialState = {
   nextPage: 2,
   isRunning: false,
   schedule: null,
+  latestFlowSheet: null,
 }
 
 const useQueueStore = create((set, get) => ({
@@ -139,6 +141,8 @@ const useQueueStore = create((set, get) => ({
       get().startRunningChecker(true)
     }
   },
+
+  setLatestFlowSheet: valueSetter(set, 'latestFlowSheet'),
 }))
 
 const collateJobsWithTasks = async (jobsPromise) => {

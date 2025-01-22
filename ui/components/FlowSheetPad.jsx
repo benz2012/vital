@@ -14,7 +14,15 @@ import JobQueueSidePad from './JobQueueSidePad'
 const ALL_CODES = 'All Observer Codes'
 const ONE_CODE = 'One Observer Code'
 
-const FlowSheetPad = ({ open, onClose, parent, observerCodes, onExport }) => {
+const FlowSheetPad = ({
+  open,
+  onClose,
+  parent,
+  observerCodes,
+  onExport,
+  latestFlowSheet,
+  setLatestFlowSheet,
+}) => {
   const [selectionMode, setSelectionMode] = useState(ALL_CODES)
   const [selectedCode, setSelectedCode] = useState(null)
 
@@ -25,13 +33,12 @@ const FlowSheetPad = ({ open, onClose, parent, observerCodes, onExport }) => {
   }, [JSON.stringify(observerCodes)])
 
   const [exporting, setExporting] = useState(false)
-  const [outputFile, setOutputFile] = useState(null)
   const triggerExport = async () => {
     setExporting(true)
     const exportArg = selectionMode === ALL_CODES ? 'ALL_CODES' : selectedCode
     const result = await onExport(exportArg)
     setExporting(false)
-    setOutputFile(result)
+    setLatestFlowSheet(result)
   }
 
   const cleanupAndClose = () => {
@@ -39,7 +46,7 @@ const FlowSheetPad = ({ open, onClose, parent, observerCodes, onExport }) => {
     onClose()
   }
 
-  const exportText = exporting ? 'Exporting...' : 'Export to Folder'
+  const exportText = exporting ? 'Exporting...' : 'Export to a Folder'
 
   return (
     <JobQueueSidePad
@@ -106,7 +113,7 @@ const FlowSheetPad = ({ open, onClose, parent, observerCodes, onExport }) => {
         </Select>
       </FormControl>
 
-      {outputFile && (
+      {latestFlowSheet && (
         <Box>
           <Box sx={{ display: 'flex', color: 'tertiary.main', gap: 0.5 }}>
             Most recently exported to
@@ -119,7 +126,7 @@ const FlowSheetPad = ({ open, onClose, parent, observerCodes, onExport }) => {
               wordBreak: 'break-all',
             })}
           >
-            {outputFile}
+            {latestFlowSheet}
           </Box>
         </Box>
       )}

@@ -163,7 +163,6 @@ const JobQueue = () => {
     setJobReportId(null)
     setFlowSheetOpen(!flowSheetOpen)
   }
-
   const completedObserverCodes = [
     ...new Set(
       completeJobs.map((job) => {
@@ -176,6 +175,8 @@ const JobQueue = () => {
       })
     ),
   ].toSorted()
+  const latestFlowSheet = useQueueStore((state) => state.latestFlowSheet)
+  const setLatestFlowSheet = useQueueStore((state) => state.setLatestFlowSheet)
 
   /* General effect, keep last */
   useEffect(() => {
@@ -390,6 +391,8 @@ const JobQueue = () => {
           parent={queueDialogRef.current}
           observerCodes={completedObserverCodes}
           onExport={triggerFlowSheetExport}
+          latestFlowSheet={latestFlowSheet}
+          setLatestFlowSheet={setLatestFlowSheet}
         />
       </DialogContent>
     </Dialog>
