@@ -28,6 +28,7 @@ import SchedulePad from '../components/SchedulePad'
 import TinyTextButton from '../components/TinyTextButton'
 import TaskDetailsPad from '../components/TaskDetailsPad'
 import JobReportPad from '../components/JobReportPad'
+import FlowSheetPad from '../components/FlowSheetPad'
 
 const JobQueue = () => {
   const jobQueueOpen = useStore((state) => state.jobQueueOpen)
@@ -59,6 +60,7 @@ const JobQueue = () => {
   const toggleSchedule = () => {
     setTaskDetailsJobId(null)
     setJobReportId(null)
+    setFlowSheetOpen(false)
     setScheduleOpen(!scheduleOpen)
   }
 
@@ -101,10 +103,10 @@ const JobQueue = () => {
     setConfirmationDialogOpen(true)
   }
 
-  const triggerFlowSheetExport = async () => {
+  const triggerFlowSheetExport = async (forObserver) => {
     const filePath = await window.api.selectFile(FILE_TYPES.FOLDER)
     if (!filePath) return
-    const result = await ingestAPI.exportFlowSheet(filePath)
+    const result = await ingestAPI.exportFlowSheet(filePath, forObserver)
     return result
   }
 
@@ -122,6 +124,7 @@ const JobQueue = () => {
   const toggleTaskDetails = (jobId) => {
     setScheduleOpen(false)
     setJobReportId(null)
+    setFlowSheetOpen(false)
     setTaskDetailsJobId((prev) => (prev === jobId ? null : jobId))
   }
 
@@ -141,6 +144,7 @@ const JobQueue = () => {
   const toggleJobReport = (jobId) => {
     setScheduleOpen(false)
     setTaskDetailsJobId(null)
+    setFlowSheetOpen(false)
     setJobReportId((prev) => (prev === jobId ? null : jobId))
   }
   const triggerReportExport = async () => {
@@ -151,14 +155,37 @@ const JobQueue = () => {
   }
   const reloadOneCompletedJob = useQueueStore((state) => state.reloadOneCompletedJob)
 
+  /* Flow Sheet Export Logic */
+  const [flowSheetOpen, setFlowSheetOpen] = useState(false)
+  const toggleFlowSheet = () => {
+    setScheduleOpen(false)
+    setTaskDetailsJobId(null)
+    setJobReportId(null)
+    setFlowSheetOpen(!flowSheetOpen)
+  }
+
+  const completedObserverCodes = [
+    ...new Set(
+      completeJobs.map((job) => {
+        try {
+          return JSON.parse(job.data).observer_code
+        } catch (e) {
+          console.error(`Error parsing observer_code from job data: ${e}`)
+          return null
+        }
+      })
+    ),
+  ].toSorted()
+
   /* General effect, keep last */
   useEffect(() => {
     setScheduleOpen(false)
     setTaskDetailsJobId(null)
     setJobReportId(null)
+    setFlowSheetOpen(false)
   }, [jobQueueOpen])
 
-  const slideQueueOver = scheduleOpen || taskDetailsOpen || jobReportOpen
+  const slideQueueOver = scheduleOpen || taskDetailsOpen || jobReportOpen || flowSheetOpen
 
   /** Rendering Section **/
 
@@ -287,7 +314,7 @@ const JobQueue = () => {
               color="success"
               sx={{ textTransform: 'none' }}
               endIcon={<Grid4x4 />}
-              onClick={triggerFlowSheetExport}
+              onClick={toggleFlowSheet}
               disabled={completeJobs.length === 0}
             >
               Export PA Flow CSV
@@ -355,6 +382,14 @@ const JobQueue = () => {
           data={jobReport?.data || {}}
           onExport={triggerReportExport}
           reloadJob={reloadOneCompletedJob}
+        />
+
+        <FlowSheetPad
+          open={flowSheetOpen}
+          onClose={() => setFlowSheetOpen(false)}
+          parent={queueDialogRef.current}
+          observerCodes={completedObserverCodes}
+          onExport={triggerFlowSheetExport}
         />
       </DialogContent>
     </Dialog>

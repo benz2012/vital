@@ -20,8 +20,10 @@ const exportReportCSV = (jobId, folderPath) =>
   getJSON(
     `${ingestURL}/export_report?job_id=${jobId}&output_folder=${encodeURIComponent(folderPath)}`
   )
-const exportFlowSheet = (folderPath) =>
-  getJSON(`${ingestURL}/export_flowsheet?output_folder=${encodeURIComponent(folderPath)}`)
+const exportFlowSheet = (folderPath, forObserver) =>
+  getJSON(
+    `${ingestURL}/export_flowsheet?output_folder=${encodeURIComponent(folderPath)}&observer=${forObserver}`
+  )
 const cleanUpJobs = () => postJSON(`${ingestURL}/clean_up_jobs`)
 
 // Metadata Methods

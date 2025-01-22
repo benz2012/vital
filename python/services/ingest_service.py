@@ -219,6 +219,7 @@ class IngestService:
         output_timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         output_file = os.path.join(output_folder, f'PA_FlowSheet_Export_{output_timestamp}.csv')
         csv_df.to_csv(output_file, index=False)
+        return output_file
 
     @staticmethod
     def size_string(bytes):
