@@ -1,6 +1,7 @@
 import Box from '@mui/material/Box'
 import TextField from '@mui/material/TextField'
 import Button from '@mui/material/Button'
+import TinyTextButton from './TinyTextButton'
 
 const BatchRenameController = ({
   oneFileName,
@@ -8,6 +9,8 @@ const BatchRenameController = ({
   batchRenameRules,
   setOneBatchRenameRule,
   applyBatchRenameRules,
+  selectedRows,
+  clearRowSelection,
 }) => {
   return (
     <>
@@ -100,16 +103,40 @@ const BatchRenameController = ({
             onChange={(event) => setOneBatchRenameRule('replaceString', event.target.value)}
           />
         </Box>
-        <Button
-          variant="contained"
-          color="secondary"
-          sx={{ alignSelf: 'flex-end', color: 'white' }}
-          disableElevation
-          onClick={applyBatchRenameRules}
-          disabled={batchRenameRules.applied}
-        >
-          {batchRenameRules.applied ? 'Rules Applied' : 'Apply Rules'}
-        </Button>
+        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+          <Button
+            variant="contained"
+            color="secondary"
+            sx={{ alignSelf: 'flex-end', color: 'white' }}
+            disableElevation
+            onClick={applyBatchRenameRules}
+            disabled={batchRenameRules.applied}
+          >
+            {batchRenameRules.applied ? 'Rules Applied' : 'Apply Rules'}
+          </Button>
+          <Box sx={{ fontWeight: 300 }}>
+            {selectedRows.length === 0 ? (
+              <>
+                to{' '}
+                <Box component="span" sx={{ fontWeight: 700 }}>
+                  All
+                </Box>{' '}
+                rows
+              </>
+            ) : (
+              <>
+                to{' '}
+                <Box component="span" sx={{ color: 'secondary.main', fontWeight: 700 }}>
+                  {selectedRows.length}
+                </Box>{' '}
+                selected rows
+              </>
+            )}
+          </Box>
+          {selectedRows.length > 0 && (
+            <TinyTextButton onClick={clearRowSelection}>clear &times;</TinyTextButton>
+          )}
+        </Box>
       </Box>
     </>
   )

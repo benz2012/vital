@@ -38,6 +38,9 @@ const IngestParseSidebar = ({
   const addToIgnoreList = useJobStore((state) => state.addToIgnoreList)
   const removeFromIgnoreList = useJobStore((state) => state.removeFromIgnoreList)
 
+  const selectedRows = useJobStore((state) => state.selectedRows)
+  const clearRowSelection = useJobStore((state) => state.clearRowSelection)
+
   const batchRenameRules = useJobStore((state) => state.batchRenameRules)
   const setOneBatchRenameRule = useJobStore((state) => state.setOneBatchRenameRule)
   const applyBatchRenameRules = useJobStore((state) => state.applyBatchRenameRules)
@@ -124,6 +127,8 @@ const IngestParseSidebar = ({
             batchRenameRules={batchRenameRules}
             setOneBatchRenameRule={setOneBatchRenameRule}
             applyBatchRenameRules={applyBatchRenameRules}
+            selectedRows={selectedRows}
+            clearRowSelection={clearRowSelection}
           />
         </Box>
       )}
