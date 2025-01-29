@@ -31,7 +31,6 @@ const BatchRenameController = ({
           gap: 1,
           paddingTop: 0.5,
           marginTop: -0.5,
-          overflow: 'auto',
         }}
       >
         <Box sx={{ display: 'flex', gap: 1 }}>

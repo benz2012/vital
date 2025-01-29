@@ -68,7 +68,16 @@ const IngestParseSidebar = ({
         </Box>
       )}
       {status === STATUSES.COMPLETED && (
-        <>
+        <Box
+          sx={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 1,
+            paddingBottom: 1,
+            overflowY: 'auto',
+            overflowX: 'hidden',
+          }}
+        >
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <Box sx={{ fontSize: '20px' }}>
               Ingesting {bytesToSize(totalSize, 2)} of {jobMode}
@@ -116,7 +125,11 @@ const IngestParseSidebar = ({
             setOneBatchRenameRule={setOneBatchRenameRule}
             applyBatchRenameRules={applyBatchRenameRules}
           />
+        </Box>
+      )}
 
+      {status === STATUSES.COMPLETED && (
+        <>
           <Box sx={{ flexGrow: 1 }} />
           <StyledButton
             variant="outlined"
