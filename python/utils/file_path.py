@@ -18,10 +18,24 @@ video_model = VideoModel()
 RETRY_DELAY_SEC = 1
 
 
+# Ensure this method matches the method on the frontend (safeObserverCode)
+def safe_observer_code(observer_code):
+    return observer_code \
+        .replace('/', '-') \
+        .replace('\\', '-') \
+        .replace(':', '-') \
+        .replace('*', '-') \
+        .replace('?', '-') \
+        .replace('"', '-') \
+        .replace('>', '-') \
+        .replace('<', '-') \
+        .replace('|', '-')
+
+
 def catalog_folder_subdir(year, month, day, observer_code):
     date = datetime.strptime(f"{year}-{month}-{day}", "%Y-%m-%d")
     formatted_date = date.strftime("%Y-%m-%d")
-    return f"{formatted_date}-{observer_code.replace('/', '-')}"
+    return f"{formatted_date}-{safe_observer_code(observer_code)}"
 
 
 def catalog_folder_path(catalog_folder_id, settings_enum):

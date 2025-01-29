@@ -7,7 +7,7 @@ import Alert from '@mui/material/Alert'
 import AlertTitle from '@mui/material/AlertTitle'
 
 import useJobStore from '../store/job'
-import { leafPath } from '../utilities/paths'
+import { leafPath, dateObserverFolderData, safeObserverCode } from '../utilities/paths'
 import { bytesToSize, titleCase } from '../utilities/strings'
 import STATUSES, { ERRORS, WARNINGS } from '../constants/statuses'
 import { JOB_MODES } from '../constants/routes'
@@ -29,6 +29,7 @@ const IngestParseSidebar = ({
 }) => {
   const jobMode = useJobStore((state) => state.jobMode)
   const sourceFolder = useJobStore((state) => state.sourceFolder)
+  const observerCode = useJobStore((state) => state.observerCode)
   const triggerParse = useJobStore((state) => state.triggerParse)
 
   const metadataFilter = useJobStore((state) => state.metadataFilter)
@@ -45,9 +46,20 @@ const IngestParseSidebar = ({
     return processBatchRenameOnString(oneFileName)
   }, [oneFileName, JSON.stringify(batchRenameRules)])
 
+  const sourceFolderName = leafPath(sourceFolder) || ''
+  const folderData = dateObserverFolderData(sourceFolderName)
+  const titleAddendum =
+    folderData.observerCode !== safeObserverCode(observerCode)
+      ? `with new observer code: ${observerCode}`
+      : undefined
+
   return (
     <Sidebar spacing={1}>
-      <SidebarHeader title={leafPath(sourceFolder)} subtitle={`${jobMode} metadata for`} />
+      <SidebarHeader
+        title={sourceFolderName}
+        titleAddendum={titleAddendum}
+        subtitle={`${jobMode} metadata for`}
+      />
       {status === STATUSES.LOADING && (
         <Box
           sx={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}

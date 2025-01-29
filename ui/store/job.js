@@ -102,8 +102,8 @@ const useJobStore = create((set, get) => ({
   },
 
   triggerParse: async () => {
-    const { sourceFolder, jobMode } = get()
-    const jobId = await ingestAPI.parse(jobMode, sourceFolder)
+    const { sourceFolder, observerCode, jobMode } = get()
+    const jobId = await ingestAPI.parse(jobMode, sourceFolder, observerCode)
     set({ jobId })
   },
 

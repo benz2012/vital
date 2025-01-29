@@ -9,7 +9,7 @@ import Button from '@mui/material/Button'
 import AutorenewIcon from '@mui/icons-material/Autorenew'
 
 import useJobStore from '../store/job'
-import { leafPath } from '../utilities/paths'
+import { leafPath, dateObserverFolderData, safeObserverCode } from '../utilities/paths'
 import { bytesToSize } from '../utilities/strings'
 import { calculateCompressedSizes } from '../utilities/numbers'
 import STATUSES from '../constants/statuses'
@@ -37,6 +37,7 @@ const CompressionSidebar = ({
   onTriggerAction,
 }) => {
   const sourceFolder = useJobStore((state) => state.sourceFolder)
+  const observerCode = useJobStore((state) => state.observerCode)
   const compressionBuckets = useJobStore((state) => state.compressionBuckets)
 
   const allOriginalSizes = []
@@ -62,10 +63,18 @@ const CompressionSidebar = ({
   const colorCorrectApplied = useJobStore((state) => state.colorCorrectApplied)
   const setColorCorrectApplied = useJobStore((state) => state.setColorCorrectApplied)
 
+  const sourceFolderName = leafPath(sourceFolder) || ''
+  const folderData = dateObserverFolderData(sourceFolderName)
+  const titleAddendum =
+    folderData.observerCode !== safeObserverCode(observerCode)
+      ? `with new observer code: ${observerCode}`
+      : undefined
+
   return (
     <Sidebar spacing={1}>
       <SidebarHeader
-        title={leafPath(sourceFolder)}
+        title={sourceFolderName}
+        titleAddendum={titleAddendum}
         subtitle={`choosing compression settings for`}
       />
       {status === STATUSES.LOADING && (

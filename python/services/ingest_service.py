@@ -16,7 +16,7 @@ from services.image_metadata_service import ImageMetadataService
 
 from utils.constants import image_extensions, video_extensions
 from utils.prints import print_err
-from utils.file_path import extract_catalog_folder_info
+from utils.file_path import extract_catalog_folder_info, safe_observer_code
 
 class IngestService:
 
@@ -45,13 +45,13 @@ class IngestService:
         self.video_metadata_service = VideoMetadataService()
 
 
-    def create_parse_media_job(self, source_dir, media_type):
+    def create_parse_media_job(self, source_dir, observer_code, media_type):
         job_id = self.job_service.create_job(JobType.METADATA, JobStatus.INCOMPLETE)
-        threading.Thread(target=self.parse_media, args=(job_id, source_dir, media_type)).start()
+        threading.Thread(target=self.parse_media, args=(job_id, source_dir, observer_code, media_type)).start()
         return job_id
 
 
-    def parse_media(self, job_id, source_dir, media_type):
+    def parse_media(self, job_id, source_dir, observer_code, media_type):
         try:
             target_extensions = image_extensions if media_type == MediaType.IMAGE else video_extensions
             files = self.get_files(source_dir, target_extensions)
@@ -74,7 +74,7 @@ class IngestService:
 
             validated_metadata = []
             for metadata in metadata_arr:
-                validation_status = self.validator_service.validate_media(source_dir, metadata, media_type)
+                validation_status = self.validator_service.validate_media(source_dir, observer_code, metadata, media_type)
                 metadata.validation_status = validation_status
                 validated_metadata.append(metadata.to_dict())
 
@@ -133,6 +133,7 @@ class IngestService:
         report_data = self.job_service.get_report_data(job_id)
 
         source_dir = job_data['source_dir']
+        observer_code = job_data['observer_code']
 
         task_tuple_arr = []
 
@@ -172,12 +173,21 @@ class IngestService:
             columns=["Source Folder", "Originals Destination", "Optimized Destination", "Color Corrected"]
         )
 
-        basename = os.path.basename(source_dir)
-        output_file = os.path.join(output_folder, f'{basename}_Ingest_Report.csv')
+        source_dir_name = os.path.basename(source_dir)
+        catalog_folder_info = extract_catalog_folder_info(source_dir_name)
+        _safe_observer_code = safe_observer_code(observer_code)
+        file_basename = '-'.join(
+            str(n)
+            for n in (
+                catalog_folder_info[:-1] + (_safe_observer_code,)
+            )
+        )
+        output_file = os.path.join(output_folder, f'{file_basename}_Ingest_Report.csv')
+
         incrementor = 0
         while os.path.exists(output_file):
             incrementor += 1
-            output_file = os.path.join(output_folder, f'{basename}_Ingest_Report_{incrementor}.csv')
+            output_file = os.path.join(output_folder, f'{file_basename}_Ingest_Report_{incrementor}.csv')
         csv_df.to_csv(output_file, index=False)
 
         file_created_successfully = os.path.exists(output_file)
@@ -198,19 +208,19 @@ class IngestService:
             source_dir = job_data['source_dir']
             source_dir_name = os.path.basename(source_dir)
             folder_year, folder_month, folder_day, _ = extract_catalog_folder_info(source_dir_name)
-            completed_date = datetime.strptime(f"{folder_year}-{folder_month}-{folder_day}", "%Y-%m-%d")
-            completed_date_str = completed_date.strftime("%Y-%m-%d")
+            source_date = datetime.strptime(f"{folder_year}-{folder_month}-{folder_day}", "%Y-%m-%d")
+            source_date_str = source_date.strftime("%Y-%m-%d")
 
             # ALL_CODES mode means do not filter out any observer codes
             # otherwise, only include jobs that match the target observer code
             if target_observer_code != 'ALL_CODES' and observer_code != target_observer_code:
                 continue
 
-            job_date_obsv_id = f'{completed_date_str}-{observer_code}'
+            job_date_obsv_id = f'{source_date_str}-{observer_code}'
             if job_date_obsv_id not in grouped_jobs:
                 grouped_jobs[job_date_obsv_id] = [
                     observer_code,
-                    completed_date_str,
+                    source_date_str,
                     job_type.value,
                     'TRUE'
                 ]

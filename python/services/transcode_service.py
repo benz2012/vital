@@ -232,18 +232,21 @@ class TranscodeService:
         source_dir_name = os.path.basename(source_dir)
 
         catalog_folder_info = extract_catalog_folder_info(source_dir_name)
+        # remove the source observer code and replace it with the observer code explictly set by the user
+        # later, construct_catalog_folder_path will clean the observer code if it has illegal characters
+        catalog_folder_info = catalog_folder_info[:-1] + (observer_code,)
+
+        # new instance for the video folder data table
+        catalog_folder_id = None
+        if (media_type == MediaType.VIDEO):
+            catalog_folder_id = self.folder_model.create_folder(*catalog_folder_info)
+
         optimized_dir_path = construct_catalog_folder_path(optimized_base_dir, *catalog_folder_info)
         original_dir_path = construct_catalog_folder_path(original_base_dir, *catalog_folder_info)
         local_dir_path = ''
         if local_export_path:
             local_dir_path = construct_catalog_folder_path(local_export_path, *catalog_folder_info)
             os.makedirs(local_dir_path, exist_ok=True)
-
-        catalog_folder_id = None
-        if (media_type == MediaType.VIDEO):
-            # remove the cleaned observer code and replace it with the "real" observer code
-            catalog_folder_info = catalog_folder_info[:-1] + (observer_code,)
-            catalog_folder_id = self.folder_model.create_folder(*catalog_folder_info)
 
         # We expect that all folders leading up to these leafs will exist, and if not, that an Error should be thrown
         retry_job = True # Start as True just to enter the loop, but then we will only set it back to True when we want to retry

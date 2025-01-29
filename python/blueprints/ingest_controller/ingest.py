@@ -42,7 +42,8 @@ def get_parsed_videos(job_id):
 def parse_images():
     payload = request.json
     source_dir = payload['source_dir']
-    job_id = ingest_service.create_parse_media_job(source_dir, MediaType.IMAGE)
+    observer_code = payload['observer_code']
+    job_id = ingest_service.create_parse_media_job(source_dir, observer_code, MediaType.IMAGE)
     return {"job_id": job_id}
 
 
@@ -51,7 +52,8 @@ def parse_images():
 def parse_videos():
     payload = request.json
     source_dir = payload['source_dir']
-    job_id = ingest_service.create_parse_media_job(source_dir, MediaType.VIDEO)
+    observer_code = payload['observer_code']
+    job_id = ingest_service.create_parse_media_job(source_dir, observer_code, MediaType.VIDEO)
     return {"job_id": job_id}
 
 
@@ -60,6 +62,7 @@ def parse_videos():
 def validate_path_lengths(media_str):
     payload = request.json
     source_dir = payload['source_dir']
+    observer_code = payload['observer_code']
     media_type = MediaType(media_str)
     file_path_list = payload['file_path_list']
 
@@ -67,6 +70,7 @@ def validate_path_lengths(media_str):
     for file_path_obj in file_path_list:
         is_valid = validator_service.validate_path_lengths(
             source_dir,
+            observer_code,
             file_path_obj['file_path'],
             media_type,
             file_path_obj.get('new_name')
@@ -82,6 +86,7 @@ def validate_path_lengths(media_str):
 def validate_non_existence(media_str):
     payload = request.json
     source_dir = payload['source_dir']
+    observer_code = payload['observer_code']
     media_type = MediaType(media_str)
     file_path_list = payload['file_path_list']
 
@@ -89,6 +94,7 @@ def validate_non_existence(media_str):
     for file_path_obj in file_path_list:
         is_valid = validator_service.validate_non_existence(
             source_dir,
+            observer_code,
             file_path_obj['file_path'],
             media_type,
             file_path_obj.get('new_name')

@@ -31,8 +31,9 @@ import CompressionSidebar from './CompressionSidebar'
 import CompressionBucketsList from '../components/CompressionBucketsList'
 import DarkSampleDialog from '../components/DarkSampleDialog'
 
-const LinkageAnnotationPage = () => {
+const IngestTranscodePage = () => {
   const sourceFolder = useJobStore((state) => state.sourceFolder)
+  const observerCode = useJobStore((state) => state.observerCode)
 
   const phase = useJobStore((state) => state.phase)
   const jobMode = useJobStore((state) => state.jobMode)
@@ -444,6 +445,7 @@ const LinkageAnnotationPage = () => {
     const someWindowsPathsTooLong = await ingestAPI.validatePathLengths(
       jobMode,
       sourceFolder,
+      observerCode,
       filePathsWithPossibleNewNames
     )
     if (someWindowsPathsTooLong) {
@@ -459,6 +461,7 @@ const LinkageAnnotationPage = () => {
       invalidPaths = await ingestAPI.validateNonExistence(
         jobMode,
         sourceFolder,
+        observerCode,
         filePathsWithPossibleNewNames
       )
     }
@@ -687,4 +690,4 @@ const LinkageAnnotationPage = () => {
   return <BlankSlate message={`Unknown Phase: ${phase}`} />
 }
 
-export default LinkageAnnotationPage
+export default IngestTranscodePage

@@ -1,5 +1,5 @@
 import { timecodeFromFrameNumber } from './video'
-import { leafPath } from './paths'
+import { dateObserverFolderData, leafPath, safeObserverCode } from './paths'
 
 export const yearMonthDayString = (year, month, day) => `${year}-${monthDayString(month, day)}`
 
@@ -101,7 +101,14 @@ export const titleCase = (str) => str.charAt(0).toUpperCase() + str.slice(1).toL
 export const jobNameFromData = (dataStr, numTasks) => {
   const data = JSON.parse(dataStr)
   const type = data.media_type
-  const name = leafPath(data.source_dir)
+  const observerCode = data.observer_code
+
+  const sourceFolderName = leafPath(data.source_dir) || ''
+  const folderData = dateObserverFolderData(sourceFolderName)
+  const nameAddendum =
+    folderData.observerCode !== safeObserverCode(observerCode) ? ` > ${observerCode}` : ''
+  const name = `${sourceFolderName}${nameAddendum}`
+
   let numTasksStr = `${numTasks} ${type}${numTasks > 1 ? 's' : ''}`
   if (numTasks === 0) {
     // this means that a job is old enough that we've deleted it's task data

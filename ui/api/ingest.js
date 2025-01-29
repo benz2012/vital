@@ -30,25 +30,28 @@ const cleanUpJobs = () => postJSON(`${ingestURL}/clean_up_jobs`)
 const countFiles = (sourceFolder) =>
   getJSON(`${ingestURL}/count_files/${encodeURIComponent(sourceFolder)}`)
 
-const parse = async (mode, sourceFolder) => {
+const parse = async (mode, sourceFolder, observerCode) => {
   const { data } = await postJSONWithResponse(`${ingestURL}/parse_${mode}s`, {
     source_dir: sourceFolder,
+    observer_code: observerCode,
   })
   return data?.job_id
 }
 const getJobResultData = (jobId) => getJSON(`${ingestURL}/job_data/${jobId}`)
 
-const validatePathLengths = async (mode, sourceFolder, filePaths) => {
+const validatePathLengths = async (mode, sourceFolder, observerCode, filePaths) => {
   const { data } = await postJSONWithResponse(`${ingestURL}/validate_path_lengths/${mode}`, {
     source_dir: sourceFolder,
+    observer_code: observerCode,
     file_path_list: filePaths,
   })
   return data
 }
 
-const validateNonExistence = async (mode, sourceFolder, filePaths) => {
+const validateNonExistence = async (mode, sourceFolder, observerCode, filePaths) => {
   const { data } = await postJSONWithResponse(`${ingestURL}/validate_non_existence/${mode}`, {
     source_dir: sourceFolder,
+    observer_code: observerCode,
     file_path_list: filePaths,
   })
   return data
