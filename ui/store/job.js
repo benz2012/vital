@@ -73,6 +73,7 @@ const initialState = {
   colorCorrectApplied: false,
   settingsList: [],
   observers: [],
+  selectedRows: [],
 }
 
 const validateSourceFolder = (folderPath) => {
@@ -280,6 +281,17 @@ const useJobStore = create((set, get) => ({
   },
 
   setColorCorrectApplied: valueSetter(set, 'colorCorrectApplied'),
+
+  toggleRowSelection: (rowId) => {
+    const { selectedRows } = get()
+    const isSelected = selectedRows.includes(rowId)
+    const newSelectedRows = isSelected
+      ? selectedRows.filter((selectedRow) => selectedRow !== rowId)
+      : [...selectedRows, rowId]
+    set({ selectedRows: newSelectedRows })
+  },
+  setRowSelection: (rowIds) => set({ selectedRows: rowIds }),
+  clearRowSelection: () => set({ selectedRows: [] }),
 }))
 
 const canParse = (state) => {

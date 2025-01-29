@@ -26,6 +26,8 @@ const theme = createTheme({
       dark: '#107BD5',
       main: '#00AFFF',
       light: '#B4E7FF',
+      // opacity variations
+      dark25: '#107BD540',
     },
 
     // augmentColor is a step that Material-UI automatically does for the standard palette colors.

@@ -44,6 +44,10 @@ const IngestTranscodePage = () => {
   const batchRenameRules = useJobStore((state) => state.batchRenameRules)
   const processBatchRenameOnString = useJobStore((state) => state.processBatchRenameOnString)
 
+  const selectedRows = useJobStore((state) => state.selectedRows)
+  const setRowSelection = useJobStore((state) => state.setRowSelection)
+  const toggleRowSelection = useJobStore((state) => state.toggleRowSelection)
+
   /* Poll for Parse Data, handle statuses */
   const [parseStatus, setParseStatus] = useState(STATUSES.LOADING)
   const [mediaGroups, setMediaGroups] = useState([])
@@ -608,6 +612,9 @@ const IngestTranscodePage = () => {
                 data={group.mediaList}
                 isSubfolder={group.subfolder !== ROOT_FOLDER}
                 hasMainHorizontalScroll={hasMainHorizontalScroll}
+                selectedRows={selectedRows}
+                setRowSelection={setRowSelection}
+                onRowClick={toggleRowSelection}
               />
             </Box>
           ))}

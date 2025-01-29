@@ -217,3 +217,6 @@ export const groupMediaMetadataBySubfolder = (sourceFolder, metadata) => {
 }
 
 export const dumbClone = (obj) => JSON.parse(JSON.stringify(obj))
+
+// Used for consistent access to a unique id within each row of a MetadataDisplayTable
+export const getRowId = (row) => row.filePath
