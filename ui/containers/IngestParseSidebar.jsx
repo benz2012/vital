@@ -123,11 +123,11 @@ const IngestParseSidebar = ({
             addBatchRenameRuleset={addBatchRenameRuleset}
             selectedRows={selectedRows}
             clearRowSelection={clearRowSelection}
-            batchRenameRulesValidated={batchRenameRulesValidated}
           />
           <BatchRenameList
             batchRenameRules={batchRenameRules}
             removeBatchRenameRuleset={removeBatchRenameRuleset}
+            batchRenameRulesValidated={batchRenameRulesValidated}
           />
         </Box>
       )}
