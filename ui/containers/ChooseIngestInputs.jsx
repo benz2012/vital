@@ -8,6 +8,8 @@ import RefreshIcon from '@mui/icons-material/Refresh'
 import TextField from '@mui/material/TextField'
 import ToggleButton from '@mui/material/ToggleButton'
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup'
+import Switch from '@mui/material/Switch'
+import FormControlLabel from '@mui/material/FormControlLabel'
 
 import FILE_TYPES from '../constants/fileTypes'
 import SETTING_KEYS from '../constants/settingKeys'
@@ -48,7 +50,7 @@ const JobModeButton = ({ value, children, disabled }) => (
 const BubbleListItem = ({ children, firstItem = false, lastItem = false }) => (
   <Box sx={{ display: 'flex', position: 'relative', marginTop: firstItem && 1.5 }}>
     <RadioButtonUncheckedIcon fontSize="small" sx={{ marginTop: '2px', marginRight: 2 }} />
-    <Box sx={{ fontWeight: 500 }}>{children}</Box>
+    <Box sx={{ fontWeight: 500, flexGrow: 1 }}>{children}</Box>
     {!lastItem && <VerticalLineBetweenDots />}
   </Box>
 )
@@ -69,6 +71,8 @@ const ChooseIngestInputs = () => {
 
   const jobMode = useJobStore((state) => state.jobMode)
   const setJobMode = useJobStore((state) => state.setJobMode)
+  const multiDayImport = useJobStore((state) => state.multiDayImport)
+  const setMultiDayImport = useJobStore((state) => state.setMultiDayImport)
 
   const settings = useSettingsStore((state) => state.settings)
 
@@ -110,6 +114,7 @@ const ChooseIngestInputs = () => {
         overflowY: 'auto',
         marginTop: 2,
         marginBottom: 2,
+        paddingRight: 2,
         display: 'flex',
         flexDirection: 'column',
         position: 'relative',
@@ -197,7 +202,59 @@ const ChooseIngestInputs = () => {
             <BubbleListItem>Set compression settings</BubbleListItem>
           )}
 
-          <BubbleListItem lastItem>Submit Job to Queue</BubbleListItem>
+          <BubbleListItem>Submit Job to Queue</BubbleListItem>
+
+          <BubbleListItem lastItem>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <Box>
+                Reuse these settings for{' '}
+                <Box
+                  component="span"
+                  sx={{ fontWeight: 700, color: multiDayImport ? 'primary.main' : 'inherit' }}
+                >
+                  Multi-Day
+                </Box>{' '}
+                import?
+                <br />
+                <Box component="span" sx={{ fontWeight: 400, color: 'text.secondary' }}>
+                  You can change your decision later.
+                </Box>
+              </Box>
+              <Box
+                sx={(theme) => ({
+                  paddingLeft: 2,
+                  height: theme.spacing(4),
+                  width: '130px',
+                  border: '1px solid',
+                  borderColor: 'action.selected',
+                  borderRadius: 1,
+                  display: 'flex',
+                  alignItems: 'center',
+                })}
+              >
+                <FormControlLabel
+                  control={
+                    <Switch
+                      // size="small"
+                      checked={multiDayImport}
+                      onChange={(event) => setMultiDayImport(event.target.checked)}
+                      sx={{ marginRight: 0.5 }}
+                    />
+                  }
+                  label={
+                    <Box
+                      sx={{
+                        color: multiDayImport ? 'primary.main' : 'inherit',
+                        userSelect: 'none',
+                      }}
+                    >
+                      {multiDayImport ? 'Yes' : 'No'}
+                    </Box>
+                  }
+                />
+              </Box>
+            </Box>
+          </BubbleListItem>
 
           <Box sx={{ fontWeight: 700 }}>During job execution</Box>
 
@@ -240,7 +297,11 @@ const ChooseIngestInputs = () => {
           )}
 
           <BubbleListItem lastItem>
-            Report CSV&nbsp;<em>optionally</em>&nbsp;auto-exported to
+            Report CSV <em>optionally</em> auto-exported to
+            <br />
+            <Box component="span" sx={{ fontWeight: 400, color: 'text.secondary' }}>
+              Delete this file path to disable the auto-export.
+            </Box>
             <FilePathSettingInput
               value={reportDir}
               onChange={(event) => setReportDir(event.target.value)}

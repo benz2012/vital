@@ -313,7 +313,7 @@ const JobQueue = () => {
           <Box>
             <Button
               color="success"
-              sx={{ textTransform: 'none' }}
+              sx={{ textTransform: 'none', marginRight: 1 }}
               endIcon={<Grid4x4 />}
               onClick={toggleFlowSheet}
               disabled={completeJobs.length === 0}

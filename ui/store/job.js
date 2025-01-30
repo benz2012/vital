@@ -91,6 +91,7 @@ const initialState = {
   settingsList: [],
   observers: [],
   selectedRows: [],
+  multiDayImport: false,
 }
 
 const validateSourceFolder = (folderPath) => {
@@ -286,6 +287,8 @@ const useJobStore = create((set, get) => ({
   },
   setRowSelection: (rowIds) => set({ selectedRows: rowIds }),
   clearRowSelection: () => set({ selectedRows: [] }),
+
+  setMultiDayImport: valueSetter(set, 'multiDayImport'),
 }))
 
 const canParse = (state) => {
