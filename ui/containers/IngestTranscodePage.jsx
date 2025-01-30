@@ -425,6 +425,7 @@ const IngestTranscodePage = () => {
 
       return { ...group, mediaList: newMediaList }
     })
+    setMediaGroups(newMediaGroups)
 
     if (Object.keys(duplicates).length > 0) {
       const exampleConflicts = Object.values(duplicates).flatMap((group) =>
@@ -444,7 +445,6 @@ const IngestTranscodePage = () => {
     }
 
     setAllRenamesValidated(true)
-    setMediaGroups(newMediaGroups)
   }, [batchRenameRulesValidated, JSON.stringify(batchRenameRules), JSON.stringify(mediaGroups)])
 
   const setConfirmationDialogOpen = useStore((state) => state.setConfirmationDialogOpen)

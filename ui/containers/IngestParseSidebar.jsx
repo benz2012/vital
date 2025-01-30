@@ -1,3 +1,4 @@
+import { useRef } from 'react'
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
 import CircularProgress from '@mui/material/CircularProgress'
@@ -53,6 +54,10 @@ const IngestParseSidebar = ({
       ? `with new observer code: ${observerCode}`
       : undefined
 
+  const contentBodyRef = useRef(null)
+  const hasScrollbars =
+    contentBodyRef.current?.scrollHeight - contentBodyRef.current?.clientHeight > 0
+
   return (
     <Sidebar spacing={1}>
       <SidebarHeader
@@ -69,31 +74,24 @@ const IngestParseSidebar = ({
       )}
       {status === STATUSES.COMPLETED && (
         <Box
+          ref={contentBodyRef}
           sx={{
             display: 'flex',
             flexDirection: 'column',
             gap: 1,
             paddingBottom: 1,
             overflowY: 'auto',
-            overflowX: 'hidden',
+            ...(hasScrollbars ? { paddingRight: 1, marginRight: -1 } : {}),
           }}
         >
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Box sx={{ fontSize: '20px' }}>
+            <Box sx={{ fontSize: '18px', color: 'text.secondary' }}>
               Ingesting {bytesToSize(totalSize, 2)} of {jobMode}
               {jobMode === JOB_MODES.BY_IMAGE ? 's' : ''}
             </Box>
             <Box>
-              <Button
-                sx={(theme) => ({
-                  paddingLeft: 1,
-                  // This 4px is the gap between the icon and it's "container"
-                  paddingRight: `calc(${theme.spacing(1)} - 4px)`,
-                  marginRight: `calc(${theme.spacing(-1)} + 4px)`,
-                })}
-                onClick={triggerParse}
-              >
-                Re-Parse
+              <Button onClick={triggerParse}>
+                <Box>Re-Parse</Box>
                 <RefreshIcon fontSize="small" sx={{ marginLeft: 0.5 }} />
               </Button>
             </Box>

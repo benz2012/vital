@@ -57,13 +57,13 @@ const BatchRenameList = ({
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
         Applied Renames{' '}
         {!batchRenameRulesValidated && (
-          <StyledTooltip title="Invalid rule combination" darker>
+          <StyledTooltip title="Invalid name combination. Add, change, or remove a rule." darker>
             <ReportIcon sx={{ color: 'error.main', fontSize: '20px' }} />
           </StyledTooltip>
         )}
       </Box>
       {batchRenameRules.length === 0 && <Box sx={{ fontStyle: 'italic' }}>None</Box>}
-      {batchRenameRules.map((ruleset, index) => (
+      {batchRenameRules.map((ruleset) => (
         <Box
           key={ruleset.id}
           sx={(theme) => ({
@@ -75,7 +75,7 @@ const BatchRenameList = ({
             display: 'flex',
             alignItems: 'center',
             gap: 1,
-            ...(!batchRenameRulesValidated && index === batchRenameRules.length - 1
+            ...(!batchRenameRulesValidated
               ? {
                   backgroundColor: '#D32F2F40',
                   border: `1px solid ${theme.palette.error.light}`,
