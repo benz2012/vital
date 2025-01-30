@@ -24,8 +24,8 @@ def safe_observer_code(observer_code):
         .replace('/', '-') \
         .replace('\\', '-') \
         .replace(':', '-') \
-        .replace('*', '-') \
-        .replace('?', '-') \
+        .replace('*', '') \
+        .replace('?', '') \
         .replace('"', '-') \
         .replace('>', '-') \
         .replace('<', '-') \
