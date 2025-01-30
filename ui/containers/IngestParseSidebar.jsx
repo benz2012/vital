@@ -44,6 +44,7 @@ const IngestParseSidebar = ({
   const batchRenameRules = useJobStore((state) => state.batchRenameRules)
   const addBatchRenameRuleset = useJobStore((state) => state.addBatchRenameRuleset)
   const removeBatchRenameRuleset = useJobStore((state) => state.removeBatchRenameRuleset)
+  const batchRenameRulesValidated = useJobStore((state) => state.batchRenameRulesValidated)
 
   const sourceFolderName = leafPath(sourceFolder) || ''
   const folderData = dateObserverFolderData(sourceFolderName)
@@ -122,10 +123,12 @@ const IngestParseSidebar = ({
             addBatchRenameRuleset={addBatchRenameRuleset}
             selectedRows={selectedRows}
             clearRowSelection={clearRowSelection}
+            batchRenameRulesValidated={batchRenameRulesValidated}
           />
           <BatchRenameList
             batchRenameRules={batchRenameRules}
             removeBatchRenameRuleset={removeBatchRenameRuleset}
+            batchRenameRulesValidated={batchRenameRulesValidated}
           />
         </Box>
       )}

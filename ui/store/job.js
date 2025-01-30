@@ -228,12 +228,14 @@ const useJobStore = create((set, get) => ({
     const { batchRenameRules } = get()
     set({
       batchRenameRules: [...batchRenameRules, newRuleset],
+      batchRenameRulesValidated: false,
     })
   },
   removeBatchRenameRuleset: (rulesetId) => {
     const { batchRenameRules } = get()
     set({
       batchRenameRules: batchRenameRules.filter((ruleset) => ruleset.id !== rulesetId),
+      batchRenameRulesValidated: false,
     })
   },
   setAllRenamesValidated: valueSetter(set, 'batchRenameRulesValidated'),

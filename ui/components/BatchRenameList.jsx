@@ -2,6 +2,7 @@ import Box from '@mui/material/Box'
 import IconButton from '@mui/material/IconButton'
 import DeleteForeverIcon from '@mui/icons-material/DeleteForever'
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined'
+import ReportIcon from '@mui/icons-material/Report'
 
 import StyledTooltip from './StyledTooltip'
 import { RENAME_DEFAULTS } from '../store/job'
@@ -13,7 +14,11 @@ const INFO_ROWS = [
   ['findString', 'replaceString'],
 ]
 
-const BatchRenameList = ({ batchRenameRules, removeBatchRenameRuleset }) => {
+const BatchRenameList = ({
+  batchRenameRules,
+  removeBatchRenameRuleset,
+  batchRenameRulesValidated,
+}) => {
   const renderRulesetInfo = (ruleset) => {
     const statefulRuleData = Object.entries(ruleset)
       .filter(([key]) => ['id', 'filePaths'].includes(key) === false)
@@ -49,9 +54,19 @@ const BatchRenameList = ({ batchRenameRules, removeBatchRenameRuleset }) => {
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, userSelect: 'none' }}>
-      <Box sx={{ marginBottom: 0 }}>Applied Renames</Box>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+        Applied Renames{' '}
+        {!batchRenameRulesValidated && (
+          <StyledTooltip
+            title="Invalid rule combination, try removing the one at the bottom"
+            darker
+          >
+            <ReportIcon sx={{ color: 'error.main', fontSize: '20px' }} />
+          </StyledTooltip>
+        )}
+      </Box>
       {batchRenameRules.length === 0 && <Box sx={{ fontStyle: 'italic' }}>None</Box>}
-      {batchRenameRules.map((ruleset) => (
+      {batchRenameRules.map((ruleset, index) => (
         <Box
           key={ruleset.id}
           sx={(theme) => ({
@@ -63,6 +78,12 @@ const BatchRenameList = ({ batchRenameRules, removeBatchRenameRuleset }) => {
             display: 'flex',
             alignItems: 'center',
             gap: 1,
+            ...(!batchRenameRulesValidated && index === batchRenameRules.length - 1
+              ? {
+                  backgroundColor: '#D32F2F40',
+                  border: `1px solid ${theme.palette.error.light}`,
+                }
+              : {}),
           })}
         >
           <Box sx={{ textTransform: 'uppercase', fontSize: '12px', fontWeight: 500 }}>Rename</Box>

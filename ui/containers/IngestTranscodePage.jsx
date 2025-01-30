@@ -13,6 +13,7 @@ import {
   secondsToDuration,
   fileNameGoodLength,
   fileNameGoodWhitespace,
+  processRenameRulesetAgainstString,
 } from '../utilities/strings'
 import {
   transformMediaMetadata,
@@ -41,8 +42,6 @@ const IngestTranscodePage = () => {
 
   const metadataFilter = useJobStore((state) => state.metadataFilter)
   const issueIgnoreList = useJobStore((state) => state.issueIgnoreList)
-  const batchRenameRules = useJobStore((state) => state.batchRenameRules)
-  const processBatchRenameOnString = useJobStore((state) => state.processBatchRenameOnString)
 
   const selectedRows = useJobStore((state) => state.selectedRows)
   const setRowSelection = useJobStore((state) => state.setRowSelection)
@@ -380,9 +379,12 @@ const IngestTranscodePage = () => {
 
   /* Apply batch rename rules to all filenames in the data */
   const makeAlert = useStore((state) => state.makeAlert)
-  const invalidateBatchRenameRules = useJobStore((state) => state.invalidateBatchRenameRules)
+  const batchRenameRules = useJobStore((state) => state.batchRenameRules)
+  const batchRenameRulesValidated = useJobStore((state) => state.batchRenameRulesValidated)
+  const setAllRenamesValidated = useJobStore((state) => state.setAllRenamesValidated)
   useEffect(() => {
-    if (!batchRenameRules.applied) return
+    if (batchRenameRulesValidated) return
+
     // Capture Name Duplicates to report the Conflict to the user
     const newNameOldNameMap = {}
     const duplicates = {}
@@ -391,8 +393,17 @@ const IngestTranscodePage = () => {
       const groupName = group.subfolder
 
       const newMediaList = group.mediaList.map((media) => {
+        // Loop over every ruleset in batchRenameRules and apply them in order to oldName,
+        // progressively updating the intermediate value until we arrive at the final newName
         const oldName = media.fileName
-        const newName = processBatchRenameOnString(media.fileName)
+        const newName = batchRenameRules.reduce((intermediateName, ruleset) => {
+          // filePaths.length 0 means this applies to all files
+          // otherwise, confirm that this file is in the list before applying that specific ruleset
+          if (ruleset.filePaths.length === 0 || ruleset.filePaths.includes(media.filePath)) {
+            return processRenameRulesetAgainstString(ruleset, intermediateName)
+          }
+          return intermediateName
+        }, oldName)
 
         if (newNameOldNameMap?.[groupName]?.[newName]) {
           if (!duplicates?.[groupName]?.[newName]) {
@@ -429,12 +440,12 @@ const IngestTranscodePage = () => {
         ${exampleConflicts}`,
         'error'
       )
-      invalidateBatchRenameRules()
       return
     }
 
+    setAllRenamesValidated(true)
     setMediaGroups(newMediaGroups)
-  }, [batchRenameRules.applied, JSON.stringify(mediaGroups)])
+  }, [batchRenameRulesValidated, JSON.stringify(batchRenameRules), JSON.stringify(mediaGroups)])
 
   const setConfirmationDialogOpen = useStore((state) => state.setConfirmationDialogOpen)
   const setConfirmationDialogProps = useStore((state) => state.setConfirmationDialogProps)
@@ -563,7 +574,7 @@ const IngestTranscodePage = () => {
       ]
     )
     const canTriggerNextAction = (() => {
-      if (!batchRenameRules.applied) return false
+      if (!batchRenameRulesValidated) return false
       return mediaGroupsFilteredAndIgnored.every((group) => {
         if (group.status === STATUSES.ERROR) return false
         return group.mediaList.every((media) => {
