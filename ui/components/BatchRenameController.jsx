@@ -12,7 +12,6 @@ const BatchRenameController = ({
   addBatchRenameRuleset,
   selectedRows,
   clearRowSelection,
-  batchRenameRulesValidated,
 }) => {
   const [currentRuleset, setCurrentRuleset] = useState(RENAME_DEFAULTS)
   const isDefaultState = Object.entries(currentRuleset).every(
@@ -131,7 +130,7 @@ const BatchRenameController = ({
             sx={{ alignSelf: 'flex-end', color: 'white' }}
             disableElevation
             onClick={handleApply}
-            disabled={isDefaultState || batchRenameRulesValidated === false}
+            disabled={isDefaultState}
           >
             Apply Rules
           </Button>

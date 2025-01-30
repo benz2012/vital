@@ -383,7 +383,7 @@ const IngestTranscodePage = () => {
   const batchRenameRulesValidated = useJobStore((state) => state.batchRenameRulesValidated)
   const setAllRenamesValidated = useJobStore((state) => state.setAllRenamesValidated)
   useEffect(() => {
-    if (batchRenameRulesValidated) return
+    if (batchRenameRulesValidated || mediaGroups.length === 0) return
 
     // Capture Name Duplicates to report the Conflict to the user
     const newNameOldNameMap = {}

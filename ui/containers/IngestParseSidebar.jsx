@@ -128,7 +128,6 @@ const IngestParseSidebar = ({
           <BatchRenameList
             batchRenameRules={batchRenameRules}
             removeBatchRenameRuleset={removeBatchRenameRuleset}
-            batchRenameRulesValidated={batchRenameRulesValidated}
           />
         </Box>
       )}

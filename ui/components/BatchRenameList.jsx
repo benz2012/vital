@@ -57,10 +57,7 @@ const BatchRenameList = ({
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
         Applied Renames{' '}
         {!batchRenameRulesValidated && (
-          <StyledTooltip
-            title="Invalid rule combination, try removing the one at the bottom"
-            darker
-          >
+          <StyledTooltip title="Invalid rule combination" darker>
             <ReportIcon sx={{ color: 'error.main', fontSize: '20px' }} />
           </StyledTooltip>
         )}

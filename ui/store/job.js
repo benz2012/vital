@@ -57,7 +57,7 @@ const initialState = {
       }
     */
   ],
-  batchRenameRulesValidated: true,
+  batchRenameRulesValidated: false,
   compressionBuckets: {
     small: {
       ...compressionBucketBase,
