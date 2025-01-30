@@ -117,3 +117,29 @@ export const jobNameFromData = (dataStr, numTasks) => {
   // Note: that is an emdash
   return `${name} — ${numTasksStr}`
 }
+
+export const processRenameRulesetAgainstString = (ruleset, string) => {
+  if (!ruleset || !string) return string
+  const { trimStart, trimEnd, prefix, suffix, insertText, insertAt, findString, replaceString } =
+    ruleset
+  let newString = string
+  if (trimStart > 0) {
+    newString = newString.slice(trimStart)
+  }
+  if (trimEnd > 0) {
+    newString = newString.slice(0, -trimEnd)
+  }
+  if (prefix) {
+    newString = `${prefix}${newString}`
+  }
+  if (suffix) {
+    newString = `${newString}${suffix}`
+  }
+  if (insertText) {
+    newString = newString.slice(0, insertAt) + insertText + newString.slice(insertAt)
+  }
+  if (findString) {
+    newString = newString.replaceAll(findString, replaceString)
+  }
+  return newString
+}

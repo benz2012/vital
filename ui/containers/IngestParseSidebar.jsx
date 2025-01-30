@@ -1,4 +1,3 @@
-import { useMemo } from 'react'
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
 import CircularProgress from '@mui/material/CircularProgress'
@@ -16,6 +15,7 @@ import SidebarHeader from '../components/SidebarHeader'
 import IssueSummaryControls from '../components/IssueSummaryControls'
 import StyledButton from '../components/StyledButton'
 import BatchRenameController from '../components/BatchRenameController'
+import BatchRenameList from '../components/BatchRenameList'
 
 const IngestParseSidebar = ({
   status,
@@ -42,12 +42,8 @@ const IngestParseSidebar = ({
   const clearRowSelection = useJobStore((state) => state.clearRowSelection)
 
   const batchRenameRules = useJobStore((state) => state.batchRenameRules)
-  const setOneBatchRenameRule = useJobStore((state) => state.setOneBatchRenameRule)
-  const applyBatchRenameRules = useJobStore((state) => state.applyBatchRenameRules)
-  const processBatchRenameOnString = useJobStore((state) => state.processBatchRenameOnString)
-  const oneNewName = useMemo(() => {
-    return processBatchRenameOnString(oneFileName)
-  }, [oneFileName, JSON.stringify(batchRenameRules)])
+  const addBatchRenameRuleset = useJobStore((state) => state.addBatchRenameRuleset)
+  const removeBatchRenameRuleset = useJobStore((state) => state.removeBatchRenameRuleset)
 
   const sourceFolderName = leafPath(sourceFolder) || ''
   const folderData = dateObserverFolderData(sourceFolderName)
@@ -123,12 +119,13 @@ const IngestParseSidebar = ({
 
           <BatchRenameController
             oneFileName={oneFileName}
-            oneNewName={oneNewName}
-            batchRenameRules={batchRenameRules}
-            setOneBatchRenameRule={setOneBatchRenameRule}
-            applyBatchRenameRules={applyBatchRenameRules}
+            addBatchRenameRuleset={addBatchRenameRuleset}
             selectedRows={selectedRows}
             clearRowSelection={clearRowSelection}
+          />
+          <BatchRenameList
+            batchRenameRules={batchRenameRules}
+            removeBatchRenameRuleset={removeBatchRenameRuleset}
           />
         </Box>
       )}

@@ -19,6 +19,17 @@ const compressionBucketBase = {
   sampleReloading: false,
 }
 
+export const RENAME_DEFAULTS = {
+  trimStart: 0,
+  trimEnd: 0,
+  prefix: '',
+  suffix: '',
+  insertText: '',
+  insertAt: 0,
+  findString: '',
+  replaceString: '',
+}
+
 const initialState = {
   phase: JOB_PHASES.INPUTS,
   sourceFolder: '',
@@ -30,17 +41,23 @@ const initialState = {
   reportDir: '',
   metadataFilter: null,
   issueIgnoreList: [],
-  batchRenameRules: {
-    trimStart: 0,
-    trimEnd: 0,
-    prefix: '',
-    suffix: '',
-    insertText: '',
-    insertAt: 0,
-    findString: '',
-    replaceString: '',
-    applied: true,
-  },
+  batchRenameRules: [
+    /* Shape of Objects in this array
+      {
+        id: '',
+        filePaths: [], // list of source file paths to apply the rule to
+        trimStart: 0,
+        trimEnd: 0,
+        prefix: '',
+        suffix: '',
+        insertText: '',
+        insertAt: 0,
+        findString: '',
+        replaceString: '',
+      }
+    */
+  ],
+  batchRenameRulesValidated: true,
   compressionBuckets: {
     small: {
       ...compressionBucketBase,
@@ -207,44 +224,19 @@ const useJobStore = create((set, get) => ({
     set({ issueIgnoreList: issueIgnoreList.filter((issue) => issue !== issueToRemove) })
   },
 
-  setOneBatchRenameRule: (key, value) => {
+  addBatchRenameRuleset: (newRuleset) => {
     const { batchRenameRules } = get()
-    set({ batchRenameRules: { ...batchRenameRules, applied: false, [key]: value } })
+    set({
+      batchRenameRules: [...batchRenameRules, newRuleset],
+    })
   },
-  applyBatchRenameRules: () => {
+  removeBatchRenameRuleset: (rulesetId) => {
     const { batchRenameRules } = get()
-    set({ batchRenameRules: { ...batchRenameRules, applied: true } })
+    set({
+      batchRenameRules: batchRenameRules.filter((ruleset) => ruleset.id !== rulesetId),
+    })
   },
-  invalidateBatchRenameRules: () => {
-    const { batchRenameRules } = get()
-    set({ batchRenameRules: { ...batchRenameRules, applied: false } })
-  },
-  processBatchRenameOnString: (string) => {
-    if (!string) return string
-    const { batchRenameRules } = get()
-    const { trimStart, trimEnd, prefix, suffix, insertText, insertAt, findString, replaceString } =
-      batchRenameRules
-    let newString = string
-    if (trimStart > 0) {
-      newString = newString.slice(trimStart)
-    }
-    if (trimEnd > 0) {
-      newString = newString.slice(0, -trimEnd)
-    }
-    if (prefix) {
-      newString = `${prefix}${newString}`
-    }
-    if (suffix) {
-      newString = `${newString}${suffix}`
-    }
-    if (insertText) {
-      newString = newString.slice(0, insertAt) + insertText + newString.slice(insertAt)
-    }
-    if (findString) {
-      newString = newString.replaceAll(findString, replaceString)
-    }
-    return newString
-  },
+  setAllRenamesValidated: valueSetter(set, 'batchRenameRulesValidated'),
 
   setCompressionBuckets: valueSetter(set, 'compressionBuckets'),
   setCompressionSelection: (size, quality) => {
