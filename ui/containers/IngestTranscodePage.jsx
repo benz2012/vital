@@ -450,6 +450,8 @@ const IngestTranscodePage = () => {
   const setConfirmationDialogOpen = useStore((state) => state.setConfirmationDialogOpen)
   const setConfirmationDialogProps = useStore((state) => state.setConfirmationDialogProps)
   const triggerActionAfterParse = async () => {
+    const actionToTrigger = jobMode === JOB_MODES.BY_VIDEO ? executeJob : moveToCompressionPage
+
     const filePathsWithPossibleNewNames = mediaGroups.flatMap((group) =>
       group.mediaList.map((media) => ({
         file_path: media.filePath,
@@ -472,7 +474,7 @@ const IngestTranscodePage = () => {
     }
 
     let invalidPaths = []
-    if (JSON.stringify(batchRenameRules) !== JSON.stringify(initialState.batchRenameRules)) {
+    if (batchRenameRules.length > 0) {
       invalidPaths = await ingestAPI.validateNonExistence(
         jobMode,
         sourceFolder,
@@ -480,23 +482,17 @@ const IngestTranscodePage = () => {
         filePathsWithPossibleNewNames
       )
     }
-
     if (Array.isArray(invalidPaths) && invalidPaths.length > 0) {
-      const action = jobMode === JOB_MODES.BY_VIDEO ? executeJob : moveToCompressionPage
       setConfirmationDialogProps({
         title: 'Renames will overwrite',
         body: 'Some of the batch renames you applied have created filenames that will now overwrite existing files.\n\nAre you okay with this?',
-        onConfirm: action,
+        onConfirm: actionToTrigger,
       })
       setConfirmationDialogOpen(true)
       return
     }
 
-    if (jobMode === JOB_MODES.BY_VIDEO) {
-      executeJob()
-    } else {
-      moveToCompressionPage()
-    }
+    actionToTrigger()
   }
 
   /* Rendering Setup */
