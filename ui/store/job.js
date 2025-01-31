@@ -111,12 +111,10 @@ const useJobStore = create((set, get) => ({
     set({ phase: nextPhase, jobId: null, jobIdDark: null, jobIdDarkSample: null })
     if (nextPhase === JOB_PHASES.PARSE) {
       get().triggerParse()
-      ingestAPI.deleteSampleImages() // clean this up periodically instead of react to changes on every image generation
     } else if (nextPhase === JOB_PHASES.CHOOSE_OPTIONS) {
       get().triggerSampleImages()
     } else if (nextPhase === JOB_PHASES.EXECUTE) {
       get().triggerExecute(jobIdDarkSample)
-      ingestAPI.deleteSampleImages() // clean this up periodically instead of react to changes on every image generation
     }
   },
 
@@ -124,6 +122,7 @@ const useJobStore = create((set, get) => ({
     const { sourceFolder, observerCode, jobMode } = get()
     const jobId = await ingestAPI.parse(jobMode, sourceFolder, observerCode)
     set({ jobId })
+    ingestAPI.deleteSampleImages() // clean this up periodically
   },
 
   triggerSampleImages: async (imagesToExclude = []) => {
@@ -159,8 +158,16 @@ const useJobStore = create((set, get) => ({
   },
 
   triggerExecute: async (jobIdDarkSample = null) => {
-    const { jobMode, sourceFolder, settingsList, localOutputFolder, reportDir, observerCode } =
-      get()
+    const {
+      jobMode,
+      sourceFolder,
+      settingsList,
+      localOutputFolder,
+      reportDir,
+      observerCode,
+      multiDayImport,
+    } = get()
+
     await ingestAPI.transcode(
       sourceFolder,
       settingsList,
@@ -170,17 +177,26 @@ const useJobStore = create((set, get) => ({
       observerCode
     )
 
+    // Do some post-job filesystem cleanup
+    ingestAPI.deleteSampleImages()
     if (jobMode === JOB_MODES.BY_IMAGE && jobIdDarkSample != null) {
       ingestAPI.deleteDarkSampleImages(jobIdDarkSample)
     }
 
     // After submitting a new job to the queue, Navigate the user back home,
     // reload the queue data, and reset some of the stores like we do in the Navbar
+    useRootStore.getState().resetStore()
     useQueueStore.getState().fetchJobsData()
     useRootStore.getState().setRoute(ROUTES.TOOLS)
-    useRootStore.getState().resetStore()
-    get().reset()
-    useRootStore.getState().setJobQueueOpen(true)
+
+    if (multiDayImport) {
+      // For multi-day imports, we keep the existing job state avaialble to reuse it against additional import folders
+      useRootStore.getState().setMultiDayImportOpen(true)
+    } else {
+      // For a standard one-off jobs, open the queue and reset all existing job state
+      useRootStore.getState().setJobQueueOpen(true)
+      get().reset()
+    }
   },
 
   setSourceFolder: (sourceFolder) => {

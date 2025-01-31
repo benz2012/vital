@@ -16,6 +16,7 @@ import DescriptionBox from '../components/DescriptionBox'
 import StyledButton from '../components/StyledButton'
 import ChooseFolderBrowser from './ChooseFolderBrowser'
 import ChooseIngestInputs from './ChooseIngestInputs'
+import MultiDayImportDialog from './MultiDayImportDialog'
 
 const ToolsContainer = () => {
   const [tool, _setTool] = useState(TOOLS.INGEST_TRANSCODE)
@@ -116,6 +117,8 @@ const ToolsContainer = () => {
           </>
         )}
       </Box>
+
+      <MultiDayImportDialog />
     </Box>
   )
 }

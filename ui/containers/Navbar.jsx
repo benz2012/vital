@@ -29,6 +29,7 @@ const Navbar = ({ width }) => {
   const numJobs = useQueueStore((state) => state.incompleteJobs.length)
   const jobQueueOpen = useStore((state) => state.jobQueueOpen)
   const setJobQueueOpen = useStore((state) => state.setJobQueueOpen)
+  const multiDayImportOpen = useStore((state) => state.multiDayImportOpen)
 
   const handleToolsClick = () => {
     const action = () => {
@@ -73,13 +74,14 @@ const Navbar = ({ width }) => {
     >
       <NavbarButton
         selected={tabSelected === 0}
-        disabled={!settingsInitialized}
+        disabled={!settingsInitialized || multiDayImportOpen}
         onClick={handleToolsClick}
       >
         Tools
       </NavbarButton>
       <NavbarButton
         selected={tabSelected === 1}
+        disabled={multiDayImportOpen}
         onClick={() => {
           setJobQueueOpen(false)
           setSettingsOpen(true)
@@ -89,7 +91,7 @@ const Navbar = ({ width }) => {
       </NavbarButton>
       <NavbarButton
         selected={tabSelected === 2}
-        disabled={!settingsInitialized}
+        disabled={!settingsInitialized || multiDayImportOpen}
         onClick={() => {
           setSettingsOpen(false)
           setJobQueueOpen(true)
