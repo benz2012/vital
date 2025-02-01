@@ -17,9 +17,9 @@ import { COMPRESSION_OPTIONS } from '../constants/fileTypes'
 
 import Sidebar from '../components/Sidebar'
 import SidebarHeader from '../components/SidebarHeader'
-import StyledButton from '../components/StyledButton'
 import TinyTextButton from '../components/TinyTextButton'
 import FilesizeSwarmHistogram from '../components/FilesizeSwarmHistogram'
+import PhaseTriggerSection from '../components/PhaseTriggerSection'
 
 const CompressionSidebar = ({
   status,
@@ -39,6 +39,8 @@ const CompressionSidebar = ({
   const sourceFolder = useJobStore((state) => state.sourceFolder)
   const observerCode = useJobStore((state) => state.observerCode)
   const compressionBuckets = useJobStore((state) => state.compressionBuckets)
+  const multiDayImport = useJobStore((state) => state.multiDayImport)
+  const setMultiDayImport = useJobStore((state) => state.setMultiDayImport)
 
   const allOriginalSizes = []
   const allCompressedSizes = []
@@ -334,17 +336,14 @@ const CompressionSidebar = ({
       )}
 
       {status === STATUSES.COMPLETED && (
-        <>
-          <Box sx={{ flexGrow: 1 }} />
-          <StyledButton
-            variant="outlined"
-            fullWidth
-            disabled={!canTrigger}
-            onClick={onTriggerAction}
-          >
-            {actionName}
-          </StyledButton>
-        </>
+        <PhaseTriggerSection
+          actionName={actionName}
+          canTrigger={canTrigger}
+          onTriggerAction={onTriggerAction}
+          multiDayImport={multiDayImport}
+          setMultiDayImport={setMultiDayImport}
+          showMultiDayImport
+        />
       )}
     </Sidebar>
   )

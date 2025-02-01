@@ -235,7 +235,6 @@ const ChooseIngestInputs = () => {
                 <FormControlLabel
                   control={
                     <Switch
-                      // size="small"
                       checked={multiDayImport}
                       onChange={(event) => setMultiDayImport(event.target.checked)}
                       sx={{ marginRight: 0.5 }}

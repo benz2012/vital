@@ -11,12 +11,13 @@ import { leafPath, dateObserverFolderData, safeObserverCode } from '../utilities
 import { bytesToSize, titleCase } from '../utilities/strings'
 import STATUSES, { ERRORS, WARNINGS } from '../constants/statuses'
 import { JOB_MODES } from '../constants/routes'
+
 import Sidebar from '../components/Sidebar'
 import SidebarHeader from '../components/SidebarHeader'
 import IssueSummaryControls from '../components/IssueSummaryControls'
-import StyledButton from '../components/StyledButton'
 import BatchRenameController from '../components/BatchRenameController'
 import BatchRenameList from '../components/BatchRenameList'
+import PhaseTriggerSection from '../components/PhaseTriggerSection'
 
 const IngestParseSidebar = ({
   status,
@@ -32,6 +33,8 @@ const IngestParseSidebar = ({
   const sourceFolder = useJobStore((state) => state.sourceFolder)
   const observerCode = useJobStore((state) => state.observerCode)
   const triggerParse = useJobStore((state) => state.triggerParse)
+  const multiDayImport = useJobStore((state) => state.multiDayImport)
+  const setMultiDayImport = useJobStore((state) => state.setMultiDayImport)
 
   const metadataFilter = useJobStore((state) => state.metadataFilter)
   const setMetadataFilter = useJobStore((state) => state.setMetadataFilter)
@@ -131,17 +134,14 @@ const IngestParseSidebar = ({
       )}
 
       {status === STATUSES.COMPLETED && (
-        <>
-          <Box sx={{ flexGrow: 1 }} />
-          <StyledButton
-            variant="outlined"
-            fullWidth
-            disabled={!canTrigger}
-            onClick={onTriggerAction}
-          >
-            {actionName}
-          </StyledButton>
-        </>
+        <PhaseTriggerSection
+          actionName={actionName}
+          canTrigger={canTrigger}
+          onTriggerAction={onTriggerAction}
+          multiDayImport={multiDayImport}
+          setMultiDayImport={setMultiDayImport}
+          showMultiDayImport={jobMode === JOB_MODES.BY_VIDEO}
+        />
       )}
 
       {/* This represents an error status, but we overload the value with the message */}
