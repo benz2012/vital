@@ -10,7 +10,7 @@ import TinyTextButton from './TinyTextButton'
 const BatchRenameController = ({
   oneFileName,
   addBatchRenameRuleset,
-  selectedRows,
+  selectedRows = [],
   clearRowSelection,
 }) => {
   const [currentRuleset, setCurrentRuleset] = useState(RENAME_DEFAULTS)

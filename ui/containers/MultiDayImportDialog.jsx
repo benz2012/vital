@@ -4,6 +4,8 @@ import Dialog from '@mui/material/Dialog'
 import DialogTitle from '@mui/material/DialogTitle'
 import DialogContent from '@mui/material/DialogContent'
 import DialogActions from '@mui/material/DialogActions'
+import FormControlLabel from '@mui/material/FormControlLabel'
+import Switch from '@mui/material/Switch'
 import AddIcon from '@mui/icons-material/Add'
 
 import useStore from '../store'
@@ -11,7 +13,7 @@ import useJobStore from '../store/job'
 import useSettingsStore from '../store/settings'
 import ingestAPI from '../api/ingest'
 import SETTING_KEYS from '../constants/settingKeys'
-import FILE_TYPES from '../constants/fileTypes'
+import FILE_TYPES, { COMPRESSION_OPTIONS } from '../constants/fileTypes'
 import { TITLEBAR_HEIGHT } from '../constants/dimensions'
 import { JOB_MODES } from '../constants/routes'
 import { titleCase } from '../utilities/strings'
@@ -22,6 +24,8 @@ import StyledButton from '../components/StyledButton'
 import PropertyLine from '../components/PropertyLine'
 import StyledPillButton from '../components/StyledPillButton'
 import MultiImportFolderList from '../components/MultiImportFolderList'
+import BatchRenameController from '../components/BatchRenameController'
+import TinyTextButton from '../components/TinyTextButton'
 
 const propertyContainerStyles = (lineStyle = 'solid') => ({
   flex: '0 0 auto',
@@ -36,9 +40,9 @@ const propertyContainerStyles = (lineStyle = 'solid') => ({
 })
 
 const MultiDayImportDialog = () => {
+  /* Modal state */
   const multiDayImportOpen = useStore((state) => state.multiDayImportOpen)
   const setMultiDayImportOpen = useStore((state) => state.setMultiDayImportOpen)
-
   const setConfirmationDialogOpen = useStore((state) => state.setConfirmationDialogOpen)
   const setConfirmationDialogProps = useStore((state) => state.setConfirmationDialogProps)
   const confirmThenClose = () => {
@@ -50,12 +54,13 @@ const MultiDayImportDialog = () => {
     setConfirmationDialogOpen(true)
   }
 
+  /* Previously-queued Job State that we are referencing as a template */
   const sourceFolder = useJobStore((state) => state.sourceFolder)
   const jobMode = useJobStore((state) => state.jobMode)
   const observerCode = useJobStore((state) => state.observerCode)
   const localOutputFolder = useJobStore((state) => state.localOutputFolder)
   const reportDir = useJobStore((state) => state.reportDir)
-
+  const compressionBuckets = useJobStore((state) => state.compressionBuckets)
   const settings = useSettingsStore((state) => state.settings)
   const originalsDir =
     jobMode === JOB_MODES.BY_IMAGE
@@ -70,6 +75,10 @@ const MultiDayImportDialog = () => {
   const [selectedFolders, setSelectedFolders] = useState([])
   const [fileCounts, setFileCounts] = useState({})
   const [invalidFolders, setInvalidFolders] = useState([])
+  const [batchRenameRule, setBatchRenameRule] = useState(null)
+  const [darknessCorrectAll, setDarknessCorrectAll] = useState(false)
+
+  /* Controllers for that Specific-state */
   const addFolder = async (folderPath) => {
     setSelectedFolders([...selectedFolders, folderPath])
     const [pathValid] = validateSourceFolder(folderPath)
@@ -96,6 +105,8 @@ const MultiDayImportDialog = () => {
       setSelectedFolders([])
       setFileCounts({})
       setInvalidFolders([])
+      setBatchRenameRule(null)
+      setDarknessCorrectAll(false)
     }
   }, [multiDayImportOpen])
 
@@ -143,20 +154,92 @@ const MultiDayImportDialog = () => {
       >
         <Box sx={propertyContainerStyles('dashed')}>
           <Box sx={{ fontSize: '18px', fontWeight: 500 }}>Template Job Properties</Box>
-          <PropertyLine label="Original Folder Name" value={leafPath(sourceFolder)} />
-          <PropertyLine label="Output Observer Code" value={observerCode} />
-          <PropertyLine label={`Original ${jobMode}s copied to`} value={originalsDir} longText />
-          <PropertyLine label={`Optimized ${jobMode}s exported to`} value={optimizedDir} longText />
-          {jobMode === JOB_MODES.BY_IMAGE && localOutputFolder && (
+          <Box
+            sx={{
+              height: '100%',
+              overflowX: 'auto',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 0.5,
+            }}
+          >
+            <PropertyLine label="Original Folder Name" value={leafPath(sourceFolder)} />
+            <PropertyLine label="Output Observer Code" value={observerCode} />
+            <PropertyLine label={`Original ${jobMode}s copied to`} value={originalsDir} longText />
             <PropertyLine
-              label={`Optimized ${jobMode}s locally exported to`}
-              value={localOutputFolder}
+              label={`Optimized ${jobMode}s exported to`}
+              value={optimizedDir}
               longText
             />
-          )}
-          {reportDir && (
-            <PropertyLine label="Report CSV auto-exported to" value={reportDir} longText />
-          )}
+            {jobMode === JOB_MODES.BY_IMAGE && localOutputFolder && (
+              <PropertyLine
+                label={`Optimized ${jobMode}s locally exported to`}
+                value={localOutputFolder}
+                longText
+              />
+            )}
+            {reportDir && (
+              <PropertyLine label="Report CSV auto-exported to" value={reportDir} longText />
+            )}
+            <PropertyLine
+              label="Batch Rename Rulesets"
+              value={
+                <Box
+                  sx={(theme) => ({
+                    fontSize: '14px',
+                    lineHeight: '16px',
+                    fontFamily: theme.typography.fontFamily,
+                  })}
+                >
+                  You cannot re-use these from the template job, but you can set{' '}
+                  <strong>one</strong> new rule that will apply to all new jobs created here. Keep
+                  in mind that file names must be unique and less than 20 characters. We cannot
+                  validate this for you on the Multi-Day Import screen.
+                </Box>
+              }
+            />
+            {jobMode === JOB_MODES.BY_IMAGE && (
+              <PropertyLine
+                label="Compression Bucket Choices"
+                value={Object.values(compressionBuckets)
+                  .filter((bucket) => bucket.images.length > 0)
+                  .map((bucket) => (
+                    <Box key={bucket.name} sx={{ fontSize: '14px', lineHeight: '16px' }}>
+                      {bucket.name} bucket:{' '}
+                      {COMPRESSION_OPTIONS[bucket.selection].compressionAmount} compression
+                    </Box>
+                  ))}
+              />
+            )}
+            {jobMode === JOB_MODES.BY_IMAGE && (
+              <PropertyLine
+                label={`Darkness Correct All Images`}
+                value={
+                  <FormControlLabel
+                    sx={{ marginLeft: 0 }}
+                    control={
+                      <Switch
+                        size="small"
+                        checked={darknessCorrectAll}
+                        onChange={(event) => setDarknessCorrectAll(event.target.checked)}
+                        sx={{ marginRight: 0.5 }}
+                      />
+                    }
+                    label={
+                      <Box
+                        sx={{
+                          color: darknessCorrectAll ? 'primary.main' : 'inherit',
+                          userSelect: 'none',
+                        }}
+                      >
+                        {darknessCorrectAll ? 'Yes' : 'No'}
+                      </Box>
+                    }
+                  />
+                }
+              />
+            )}
+          </Box>
         </Box>
 
         <Box sx={propertyContainerStyles()}>
@@ -188,6 +271,35 @@ const MultiDayImportDialog = () => {
               invalidFolders={invalidFolders}
             />
           </Box>
+        </Box>
+
+        <Box sx={propertyContainerStyles()}>
+          {batchRenameRule ? (
+            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+              <Box sx={{ fontSize: '18px', fontWeight: 500 }}>Batch Rename Rule</Box>
+              <TinyTextButton onClick={() => setBatchRenameRule(null)}>clear</TinyTextButton>
+              <Box
+                sx={(theme) => ({
+                  fontFamily: theme.typography.monoFamily,
+                  fontSize: '14px',
+                  marginTop: 1,
+                })}
+              >
+                {Object.entries(batchRenameRule)
+                  .filter(([key]) => !['id', 'filePaths'].includes(key))
+                  .map(([key, value]) => (
+                    <Box key={key}>
+                      {key}: {value}
+                    </Box>
+                  ))}
+              </Box>
+            </Box>
+          ) : (
+            <BatchRenameController
+              oneFileName="example-file-name"
+              addBatchRenameRuleset={setBatchRenameRule}
+            />
+          )}
         </Box>
       </DialogContent>
 
