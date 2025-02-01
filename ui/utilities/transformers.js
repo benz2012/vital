@@ -138,6 +138,8 @@ export const transformMediaMetadata = (media) => {
     width: media.width,
     height: media.height,
     numFrames: media.num_frames,
+    // WARNING: this is a string, and somehow that hasn't caused issues yet, but it appears as a Number
+    //          in some places because I call Math.round() on it which in JS casts to Number
     frameRate: media.frame_rate,
     duration: media.duration,
     warnings: warnings,

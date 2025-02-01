@@ -144,6 +144,15 @@ def queue_transcode():
     return {"job_id": job_id}
 
 
+@bp.route('/transcode_multi', methods=['POST'])
+@tryable_json_endpoint
+def queue_transcode_multi():
+    payload = request.json
+    # payload is a list of objects similar to those in /transcode
+    transcode_service.queue_transcode_multi(payload)
+    return True
+
+
 @bp.route('/job/<int:job_id>', methods=['DELETE'])
 @tryable_json_endpoint
 def delete_job(job_id):

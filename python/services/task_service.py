@@ -20,16 +20,22 @@ class TaskService:
 
     def get_tasks_statuses_by_job_id(self, job_id: int):
         job_data = json.loads(self.job_model.get_data(job_id))
+        multi_day_job = job_data.get('multi_day_job', False)
         media_type = MediaType[job_data['media_type'].upper()]
         tasks = self.get_tasks_by_job_id(job_id)
         if len(tasks) == 0:
             return {}
+        task_size = 1
+        if multi_day_job == False and media_type == MediaType.VIDEO:
+            # Multi-day jobs don't know their number of frames until just-in-time for each
+            # task, which means we have no way of knowing the relative size of one task to another.
+            task_size = self.get_task_size_for_video(tasks[0])
         status_report = {
             task.id: {
                 "status": task.status,
                 "progress": task.progress,
                 "progress_message": task.progress_message,
-                "size": self.get_task_size_for_video(task) if media_type == MediaType.VIDEO else 1,
+                "size": task_size,
                 "error_message": task.error_message,
             }
             for task in tasks

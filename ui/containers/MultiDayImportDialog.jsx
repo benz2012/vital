@@ -11,6 +11,7 @@ import AddIcon from '@mui/icons-material/Add'
 import useStore from '../store'
 import useJobStore from '../store/job'
 import useSettingsStore from '../store/settings'
+import useQueueStore from '../store/queue'
 import ingestAPI from '../api/ingest'
 import SETTING_KEYS from '../constants/settingKeys'
 import FILE_TYPES, { COMPRESSION_OPTIONS } from '../constants/fileTypes'
@@ -70,6 +71,7 @@ const MultiDayImportDialog = () => {
     jobMode === JOB_MODES.BY_IMAGE
       ? settings[SETTING_KEYS.BASE_FOLDER_OF_OPTIMIZED_IMAGES]
       : settings[SETTING_KEYS.BASE_FOLDER_OF_VIDEOS]
+  const fetchJobsData = useQueueStore((state) => state.fetchJobsData)
 
   /* Specific-state for Multi-Day Import */
   const [selectedFolders, setSelectedFolders] = useState([])
@@ -127,6 +129,7 @@ const MultiDayImportDialog = () => {
     }))
     await ingestAPI.queueMultiDayImport(payload)
 
+    fetchJobsData()
     setMultiDayImportOpen(false)
     resetJobStore()
     setJobQueueOpen(true)

@@ -310,7 +310,9 @@ const canParse = (state) => {
   return true
 }
 
-/** Find the bucket that this resolution fits into */
+/** Find the bucket that this resolution fits into
+ *  Ensure this method matches the server-side implementation determine_bucket_for_resolution
+ */
 const determineBucketForResolution = (compressionBuckets, resolution) => {
   const megapixels = resolutionToTotalPixels(resolution)
   const foundBucketKey = Object.keys(compressionBuckets).find((bucketKey) => {
