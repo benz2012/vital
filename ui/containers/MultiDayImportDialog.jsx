@@ -24,8 +24,6 @@ import StyledButton from '../components/StyledButton'
 import PropertyLine from '../components/PropertyLine'
 import StyledPillButton from '../components/StyledPillButton'
 import MultiImportFolderList from '../components/MultiImportFolderList'
-import BatchRenameController from '../components/BatchRenameController'
-import TinyTextButton from '../components/TinyTextButton'
 
 const propertyContainerStyles = (lineStyle = 'solid') => ({
   flex: '0 0 auto',
@@ -53,8 +51,10 @@ const MultiDayImportDialog = () => {
     })
     setConfirmationDialogOpen(true)
   }
+  const setJobQueueOpen = useStore((state) => state.setJobQueueOpen)
 
   /* Previously-queued Job State that we are referencing as a template */
+  const resetJobStore = useJobStore((state) => state.reset)
   const sourceFolder = useJobStore((state) => state.sourceFolder)
   const jobMode = useJobStore((state) => state.jobMode)
   const observerCode = useJobStore((state) => state.observerCode)
@@ -75,7 +75,6 @@ const MultiDayImportDialog = () => {
   const [selectedFolders, setSelectedFolders] = useState([])
   const [fileCounts, setFileCounts] = useState({})
   const [invalidFolders, setInvalidFolders] = useState([])
-  const [batchRenameRule, setBatchRenameRule] = useState(null)
   const [darknessCorrectAll, setDarknessCorrectAll] = useState(false)
 
   /* Controllers for that Specific-state */
@@ -98,14 +97,48 @@ const MultiDayImportDialog = () => {
     setInvalidFolders(invalidFolders.filter((element) => element !== folderPath))
   }
 
-  // When the modal is opened, clear any previous state
+  /* Payload Submission & Next Steps */
+  const [isQueueing, setIsQueueing] = useState(false)
+  const queueJobs = async () => {
+    setIsQueueing(true)
+
+    const relevantBucketData = Object.fromEntries(
+      Object.entries(compressionBuckets).map(([bucketKey, bucket]) => [
+        bucketKey,
+        Object.fromEntries(
+          Object.entries(bucket).filter(([key]) =>
+            ['selection', 'bottomThreshold', 'bucketAbove'].includes(key)
+          )
+        ),
+      ])
+    )
+    const imagePayload = {
+      darkness_correct_all: darknessCorrectAll || false,
+      compression_buckets: relevantBucketData,
+    }
+
+    const payload = selectedFolders.map((folderPath) => ({
+      media_type: jobMode,
+      source_dir: folderPath,
+      local_export_path: localOutputFolder,
+      report_dir: reportDir || '',
+      observer_code: observerCode,
+      ...imagePayload,
+    }))
+    await ingestAPI.queueMultiDayImport(payload)
+
+    setMultiDayImportOpen(false)
+    resetJobStore()
+    setJobQueueOpen(true)
+  }
+
+  /* Effects relying on lots of above state, leave at bottom */
   const previouslyOpen = usePrevious(multiDayImportOpen)
   useEffect(() => {
     if (previouslyOpen === false && multiDayImportOpen === true) {
       setSelectedFolders([])
       setFileCounts({})
       setInvalidFolders([])
-      setBatchRenameRule(null)
       setDarknessCorrectAll(false)
     }
   }, [multiDayImportOpen])
@@ -113,7 +146,8 @@ const MultiDayImportDialog = () => {
   const canQueue =
     selectedFolders.length > 0 &&
     invalidFolders.length === 0 &&
-    Object.values(fileCounts).every((count) => count > 0)
+    Object.values(fileCounts).every((count) => count > 0) &&
+    !isQueueing
 
   return (
     <Dialog
@@ -191,10 +225,7 @@ const MultiDayImportDialog = () => {
                     fontFamily: theme.typography.fontFamily,
                   })}
                 >
-                  You cannot re-use these from the template job, but you can set{' '}
-                  <strong>one</strong> new rule that will apply to all new jobs created here. Keep
-                  in mind that file names must be unique and less than 20 characters. We cannot
-                  validate this for you on the Multi-Day Import screen.
+                  These cannot be re-used across jobs.
                 </Box>
               }
             />
@@ -272,35 +303,6 @@ const MultiDayImportDialog = () => {
             />
           </Box>
         </Box>
-
-        <Box sx={propertyContainerStyles()}>
-          {batchRenameRule ? (
-            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
-              <Box sx={{ fontSize: '18px', fontWeight: 500 }}>Batch Rename Rule</Box>
-              <TinyTextButton onClick={() => setBatchRenameRule(null)}>clear</TinyTextButton>
-              <Box
-                sx={(theme) => ({
-                  fontFamily: theme.typography.monoFamily,
-                  fontSize: '14px',
-                  marginTop: 1,
-                })}
-              >
-                {Object.entries(batchRenameRule)
-                  .filter(([key]) => !['id', 'filePaths'].includes(key))
-                  .map(([key, value]) => (
-                    <Box key={key}>
-                      {key}: {value}
-                    </Box>
-                  ))}
-              </Box>
-            </Box>
-          ) : (
-            <BatchRenameController
-              oneFileName="example-file-name"
-              addBatchRenameRuleset={setBatchRenameRule}
-            />
-          )}
-        </Box>
       </DialogContent>
 
       <DialogActions
@@ -314,8 +316,8 @@ const MultiDayImportDialog = () => {
         <StyledButton onClick={confirmThenClose} color="plain">
           Close
         </StyledButton>
-        <StyledButton color="primary" variant="contained" disabled={!canQueue} onClick={() => null}>
-          Queue New Jobs
+        <StyledButton color="primary" variant="contained" disabled={!canQueue} onClick={queueJobs}>
+          {isQueueing ? 'Queuing...' : 'Queue New Jobs'}
         </StyledButton>
       </DialogActions>
     </Dialog>

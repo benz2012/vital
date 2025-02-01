@@ -112,6 +112,10 @@ const transcode = async (
   return data?.job_id
 }
 
+const queueMultiDayImport = async (payload) => {
+  await postJSONWithResponse(`${ingestURL}/transcode_multi`, payload)
+}
+
 const pruneOldTasks = () => deleteThis(`${ingestURL}/delete_old_tasks`)
 
 export default {
@@ -138,5 +142,6 @@ export default {
   createDarkSampleImages,
   deleteDarkSampleImages,
   transcode,
+  queueMultiDayImport,
   pruneOldTasks,
 }
