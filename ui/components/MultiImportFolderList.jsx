@@ -5,11 +5,13 @@ import RemoveCircleOutlineIcon from '@mui/icons-material/RemoveCircleOutline'
 import { leafPath } from '../utilities/paths'
 import StyledTooltip from './StyledTooltip'
 
-const MultiImportFolderList = ({ jobMode, selectedFolders, setSelectedFolders, fileCounts }) => {
-  const removeFolder = (folderPath) => {
-    setSelectedFolders(selectedFolders.filter((element) => element !== folderPath))
-  }
-
+const MultiImportFolderList = ({
+  jobMode,
+  selectedFolders,
+  removeFolder,
+  fileCounts,
+  invalidFolders,
+}) => {
   return (
     <Box
       sx={{
@@ -31,12 +33,20 @@ const MultiImportFolderList = ({ jobMode, selectedFolders, setSelectedFolders, f
             borderRadius: 1,
             display: 'flex',
             alignItems: 'center',
+            ...(invalidFolders.includes(folderPath) || fileCounts?.[folderPath] === 0
+              ? {
+                  backgroundColor: '#D32F2F40',
+                  border: `1px solid ${theme.palette.error.light}`,
+                }
+              : {}),
           })}
         >
           <StyledTooltip
             title={
               <Box component="span" sx={(theme) => ({ fontFamily: theme.typography.monoFamily })}>
-                {folderPath}
+                {invalidFolders.includes(folderPath)
+                  ? 'not in format YYYY-MM-DD-ObserverCode'
+                  : folderPath}
               </Box>
             }
             darker

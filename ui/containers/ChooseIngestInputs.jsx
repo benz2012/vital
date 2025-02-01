@@ -158,11 +158,11 @@ const ChooseIngestInputs = () => {
             if (newValue === null) return
             setJobMode(newValue)
           }}
-          disabled={
+          disabled={Boolean(
             !sourceFolderValid ||
-            (numFiles.images === null && numFiles.videos === null) ||
-            numFiles.error
-          }
+              (numFiles.images === null && numFiles.videos === null) ||
+              numFiles.error
+          )}
         >
           <JobModeButton value={JOB_MODES.BY_IMAGE} disabled={numFiles.images === 0}>
             {numFiles.images ?? '#'} images

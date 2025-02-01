@@ -15,7 +15,7 @@ import FILE_TYPES from '../constants/fileTypes'
 import { TITLEBAR_HEIGHT } from '../constants/dimensions'
 import { JOB_MODES } from '../constants/routes'
 import { titleCase } from '../utilities/strings'
-import { leafPath } from '../utilities/paths'
+import { leafPath, validateSourceFolder } from '../utilities/paths'
 import usePrevious from '../hooks/usePrevious'
 
 import StyledButton from '../components/StyledButton'
@@ -69,11 +69,24 @@ const MultiDayImportDialog = () => {
   /* Specific-state for Multi-Day Import */
   const [selectedFolders, setSelectedFolders] = useState([])
   const [fileCounts, setFileCounts] = useState({})
+  const [invalidFolders, setInvalidFolders] = useState([])
   const addFolder = async (folderPath) => {
     setSelectedFolders([...selectedFolders, folderPath])
-    const countsPerType = await ingestAPI.countFiles(folderPath)
-    const relevantCount = countsPerType[`${jobMode}s`]
-    setFileCounts({ ...fileCounts, [folderPath]: relevantCount })
+    const [pathValid] = validateSourceFolder(folderPath)
+    if (!pathValid) {
+      setInvalidFolders([...invalidFolders, folderPath])
+    } else {
+      const countsPerType = await ingestAPI.countFiles(folderPath)
+      const relevantCount = countsPerType[`${jobMode}s`]
+      setFileCounts({ ...fileCounts, [folderPath]: relevantCount })
+    }
+  }
+  const removeFolder = (folderPath) => {
+    setSelectedFolders(selectedFolders.filter((element) => element !== folderPath))
+    setFileCounts(
+      Object.fromEntries(Object.entries(fileCounts).filter(([key]) => key !== folderPath))
+    )
+    setInvalidFolders(invalidFolders.filter((element) => element !== folderPath))
   }
 
   // When the modal is opened, clear any previous state
@@ -82,10 +95,14 @@ const MultiDayImportDialog = () => {
     if (previouslyOpen === false && multiDayImportOpen === true) {
       setSelectedFolders([])
       setFileCounts({})
+      setInvalidFolders([])
     }
   }, [multiDayImportOpen])
 
-  const canQueue = selectedFolders.length > 0
+  const canQueue =
+    selectedFolders.length > 0 &&
+    invalidFolders.length === 0 &&
+    Object.values(fileCounts).every((count) => count > 0)
 
   return (
     <Dialog
@@ -104,7 +121,22 @@ const MultiDayImportDialog = () => {
         },
       }}
     >
-      <DialogTitle>Multi-Day Import - {titleCase(jobMode)} files</DialogTitle>
+      <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between' }}>
+        <Box sx={{ whiteSpace: 'nowrap' }}>Multi-Day Import - {titleCase(jobMode)} files</Box>
+        <Box
+          sx={{
+            fontSize: '14px',
+            lineHeight: '16px',
+            fontWeight: 400,
+            marginLeft: 4,
+            marginRight: 2,
+            color: 'text.secondary',
+          }}
+        >
+          Reminder: You are personally responsible for verifying the consistency of the files across
+          each folder, and manually handling any errors that arise.
+        </Box>
+      </DialogTitle>
 
       <DialogContent
         sx={{ minHeight: '50vh', overflowX: 'auto', display: 'flex', gap: 2, overflowY: 'hidden' }}
@@ -151,8 +183,9 @@ const MultiDayImportDialog = () => {
             <MultiImportFolderList
               jobMode={jobMode}
               selectedFolders={selectedFolders}
-              setSelectedFolders={setSelectedFolders}
+              removeFolder={removeFolder}
               fileCounts={fileCounts}
+              invalidFolders={invalidFolders}
             />
           </Box>
         </Box>

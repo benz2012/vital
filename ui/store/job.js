@@ -6,7 +6,7 @@ import ROUTES, { JOB_PHASES, JOB_MODES } from '../constants/routes'
 import { MAXIMUM_COMPRESSION_OPTION } from '../constants/fileTypes'
 import ingestAPI from '../api/ingest'
 import observersAPI from '../api/observers'
-import { leafPath } from '../utilities/paths'
+import { validateSourceFolder } from '../utilities/paths'
 import { resolutionToTotalPixels } from '../utilities/numbers'
 import useQueueStore from './queue'
 import useRootStore from './index'
@@ -92,14 +92,6 @@ const initialState = {
   observers: [],
   selectedRows: [],
   multiDayImport: false,
-}
-
-const validateSourceFolder = (folderPath) => {
-  const folderName = leafPath(folderPath)
-  // Check for YYYY-MM-DD-ObserverCode
-  const matchFound = folderName.match(/^\d{4}-\d{2}-\d{2}-(.+)$/i)
-  if (!matchFound) return [false, null]
-  return [true, matchFound[1]]
 }
 
 const useJobStore = create((set, get) => ({
