@@ -17,3 +17,35 @@ export const folderSlash = () => '\\'
 export const nameNoExt = (path) => {
   return path.split('.').slice(0, -1).join('.')
 }
+
+export const validateSourceFolder = (folderPath) => {
+  const folderName = leafPath(folderPath)
+  // Check for YYYY-MM-DD-ObserverCode
+  const matchFound = folderName.match(/^\d{4}-\d{2}-\d{2}-(.+)$/i)
+  if (!matchFound) return [false, null]
+  return [true, matchFound[1]]
+}
+
+export const dateObserverFolderData = (folderName) => {
+  const parts = folderName.split('-')
+  const dateParts = parts.slice(0, 3)
+  const observerParts = parts.slice(3)
+
+  const dateString = dateParts.join('-')
+  const observerCode = observerParts.join('-')
+  return { dateString, observerCode }
+}
+
+// Ensure this method matches the method on the backend (safe_observer_code)
+export const safeObserverCode = (observerCode) => {
+  return observerCode
+    .replace('/', '-')
+    .replace('\\', '-')
+    .replace(':', '-')
+    .replace('*', '')
+    .replace('?', '')
+    .replace('"', '-')
+    .replace('>', '-')
+    .replace('<', '-')
+    .replace('|', '-')
+}

@@ -65,11 +65,13 @@ const CompressionOption = ({
   compression,
   fileSize,
   savings,
+  showSavings,
   selected,
   onClick,
   imageLoaded,
 }) => {
   const savingsBytes = savings || 0
+  const showSavingsLine = Boolean(showSavings)
 
   const [loaded, setLoaded] = useState(false)
   const onLoad = () => {
@@ -149,10 +151,12 @@ const CompressionOption = ({
         <Box sx={{ fontSize: '14px' }}>
           <Box sx={{ lineHeight: '16px' }}>{compression} compression</Box>
           <Box sx={{ lineHeight: '16px' }}>{fileSize} file size</Box>
-          <Box sx={{ lineHeight: '16px' }}>
-            Savings: {savingsBytes === 0 ? '' : '~'}
-            {bytesToSize(savingsBytes)}
-          </Box>
+          {showSavingsLine && (
+            <Box sx={{ lineHeight: '16px' }}>
+              Savings: {savingsBytes === 0 ? '' : '~'}
+              {bytesToSize(savingsBytes)}
+            </Box>
+          )}
         </Box>
       </Box>
 

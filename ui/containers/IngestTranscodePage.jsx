@@ -2,10 +2,10 @@ import { useState, useEffect, useMemo, useRef } from 'react'
 import Box from '@mui/material/Box'
 
 import useStore from '../store'
-import useJobStore, { initialState } from '../store/job'
+import useJobStore, { initialState, determineBucketForResolution } from '../store/job'
 import STATUSES, { ERRORS, WARNINGS } from '../constants/statuses'
 import { JOB_PHASES, JOB_MODES } from '../constants/routes'
-import { ROOT_FOLDER, BUCKET_THRESHOLDS } from '../constants/fileTypes'
+import { ROOT_FOLDER } from '../constants/fileTypes'
 import ingestAPI from '../api/ingest'
 import {
   bytesToSize,
@@ -13,6 +13,7 @@ import {
   secondsToDuration,
   fileNameGoodLength,
   fileNameGoodWhitespace,
+  processRenameRulesetAgainstString,
 } from '../utilities/strings'
 import {
   transformMediaMetadata,
@@ -31,8 +32,9 @@ import CompressionSidebar from './CompressionSidebar'
 import CompressionBucketsList from '../components/CompressionBucketsList'
 import DarkSampleDialog from '../components/DarkSampleDialog'
 
-const LinkageAnnotationPage = () => {
+const IngestTranscodePage = () => {
   const sourceFolder = useJobStore((state) => state.sourceFolder)
+  const observerCode = useJobStore((state) => state.observerCode)
 
   const phase = useJobStore((state) => state.phase)
   const jobMode = useJobStore((state) => state.jobMode)
@@ -40,8 +42,10 @@ const LinkageAnnotationPage = () => {
 
   const metadataFilter = useJobStore((state) => state.metadataFilter)
   const issueIgnoreList = useJobStore((state) => state.issueIgnoreList)
-  const batchRenameRules = useJobStore((state) => state.batchRenameRules)
-  const processBatchRenameOnString = useJobStore((state) => state.processBatchRenameOnString)
+
+  const selectedRows = useJobStore((state) => state.selectedRows)
+  const setRowSelection = useJobStore((state) => state.setRowSelection)
+  const toggleRowSelection = useJobStore((state) => state.toggleRowSelection)
 
   /* Poll for Parse Data, handle statuses */
   const [parseStatus, setParseStatus] = useState(STATUSES.LOADING)
@@ -93,20 +97,14 @@ const LinkageAnnotationPage = () => {
   const setCompressionBuckets = useJobStore((state) => state.setCompressionBuckets)
   const setCompressionSelection = useJobStore((state) => state.setCompressionSelection)
   const moveToCompressionPage = () => {
+    // This is where we build compression buckets for incoming images
     const newBuckets = dumbClone(initialState.compressionBuckets)
     mediaGroups.forEach((group) =>
       group.mediaList.forEach((media) => {
-        const megapixels = resolutionToTotalPixels(media.resolution)
-        if (megapixels < BUCKET_THRESHOLDS.medium) {
-          newBuckets.small.images.push(media.filePath)
-          newBuckets.small.size += media.fileSize
-        } else if (megapixels < BUCKET_THRESHOLDS.large) {
-          newBuckets.medium.images.push(media.filePath)
-          newBuckets.medium.size += media.fileSize
-        } else {
-          newBuckets.large.images.push(media.filePath)
-          newBuckets.large.size += media.fileSize
-        }
+        const bucketForMedia = determineBucketForResolution(compressionBuckets, media.resolution)
+        newBuckets[bucketForMedia].images.push(media.filePath)
+        newBuckets[bucketForMedia].resolutions.push([media.width, media.height])
+        newBuckets[bucketForMedia].fileSizes.push(media.fileSize)
       })
     )
     setCompressionBuckets(newBuckets)
@@ -146,8 +144,43 @@ const LinkageAnnotationPage = () => {
     return () => clearInterval(intervalId)
   }, [phase, jobId])
 
-  const whenAllImagesHaveLoaded = async () => {
-    await ingestAPI.deleteSampleImages(jobId)
+  /* Poll-Factory for updating one sample image at a time
+   * To reduce complexity: We do not currently plan to support skipping past
+   * identified dark images. We will move to the literal next image.
+   */
+  const setCompressionSampleReloading = useJobStore((state) => state.setCompressionSampleReloading)
+  const incrementSampleImage = async (bucketKey, currentImageIndex) => {
+    const bucket = compressionBuckets[bucketKey]
+    const nextImageIndex = bucket.images.length > currentImageIndex + 1 ? currentImageIndex + 1 : 0
+    const nextImagePath = bucket.images[nextImageIndex]
+
+    setCompressionSampleReloading(bucketKey, true)
+    const oneSampleJobId = await ingestAPI.createOneSampleImageSet(bucketKey, nextImagePath)
+    let intervalId
+
+    const checkForImages = async () => {
+      const { status, error } = await ingestAPI.jobStatus(oneSampleJobId)
+      if (status === STATUSES.QUEUED) return
+      if (status === STATUSES.INCOMPLETE) {
+        if (error) {
+          clearInterval(intervalId)
+        }
+        return
+      }
+
+      // Status must be Completed at this point
+      clearInterval(intervalId)
+      const sampleData = await ingestAPI.getJobSampleData(oneSampleJobId)
+
+      const newSampleImages = [
+        ...sampleImages.filter((image) => image.bucket_name !== bucketKey),
+        ...sampleData,
+      ]
+      setSampleImages(newSampleImages)
+      setCompressionSampleReloading(bucketKey, false)
+    }
+
+    intervalId = setInterval(checkForImages, 1000)
   }
 
   /* Poll for Dark Image Numbers, handle statuses */
@@ -268,16 +301,14 @@ const LinkageAnnotationPage = () => {
       )
       const settingsList = mediaGroups.flatMap((group) =>
         group.mediaList.map((media) => {
-          let bucket = 'small'
-          if (compressionBuckets.medium.images.includes(media.filePath)) {
-            bucket = 'medium'
-          } else if (compressionBuckets.large.images.includes(media.filePath)) {
-            bucket = 'large'
-          }
+          const bucketKey = Object.keys(compressionBuckets).find((thisBucketKey) => {
+            const bucket = compressionBuckets[thisBucketKey]
+            return bucket.images.includes(media.filePath)
+          })
           return {
             file_path: media.filePath,
             new_name: media.newName,
-            jpeg_quality: compressionBuckets[bucket].selection,
+            jpeg_quality: compressionBuckets[bucketKey].selection,
             is_dark: media.fileName in darkImagesSelected,
           }
         })
@@ -348,34 +379,53 @@ const LinkageAnnotationPage = () => {
 
   /* Apply batch rename rules to all filenames in the data */
   const makeAlert = useStore((state) => state.makeAlert)
-  const invalidateBatchRenameRules = useJobStore((state) => state.invalidateBatchRenameRules)
+  const batchRenameRules = useJobStore((state) => state.batchRenameRules)
+  const batchRenameRulesValidated = useJobStore((state) => state.batchRenameRulesValidated)
+  const setAllRenamesValidated = useJobStore((state) => state.setAllRenamesValidated)
   useEffect(() => {
-    if (!batchRenameRules.applied) return
+    if (batchRenameRulesValidated || mediaGroups.length === 0) return
+
     // Capture Name Duplicates to report the Conflict to the user
     const newNameOldNameMap = {}
     const duplicates = {}
 
     const newMediaGroups = mediaGroups.map((group) => {
+      const groupName = group.subfolder
+
       const newMediaList = group.mediaList.map((media) => {
-        const newName = processBatchRenameOnString(media.fileName)
-        if (newNameOldNameMap?.[group]?.[newName]) {
-          if (!duplicates?.[group]?.[newName]) {
-            if (!duplicates[group]) {
-              duplicates[group] = {}
+        // Loop over every ruleset in batchRenameRules and apply them in order to oldName,
+        // progressively updating the intermediate value until we arrive at the final newName
+        const oldName = media.fileName
+        const newName = batchRenameRules.reduce((intermediateName, ruleset) => {
+          // filePaths.length 0 means this applies to all files
+          // otherwise, confirm that this file is in the list before applying that specific ruleset
+          if (ruleset.filePaths.length === 0 || ruleset.filePaths.includes(media.filePath)) {
+            return processRenameRulesetAgainstString(ruleset, intermediateName)
+          }
+          return intermediateName
+        }, oldName)
+
+        if (newNameOldNameMap?.[groupName]?.[newName]) {
+          if (!duplicates?.[groupName]?.[newName]) {
+            if (!duplicates[groupName]) {
+              duplicates[groupName] = {}
             }
-            duplicates[group][newName] = [newNameOldNameMap[group][newName]]
+            duplicates[groupName][newName] = [newNameOldNameMap[groupName][newName]]
           }
-          duplicates[group][newName].push(media.fileName)
+          duplicates[groupName][newName].push(oldName)
         } else {
-          if (!newNameOldNameMap[group]) {
-            newNameOldNameMap[group] = {}
+          if (!newNameOldNameMap[groupName]) {
+            newNameOldNameMap[groupName] = {}
           }
-          newNameOldNameMap[group][newName] = media.fileName
+          newNameOldNameMap[groupName][newName] = oldName
         }
+
         return { ...media, newName }
       })
+
       return { ...group, mediaList: newMediaList }
     })
+    setMediaGroups(newMediaGroups)
 
     if (Object.keys(duplicates).length > 0) {
       const exampleConflicts = Object.values(duplicates).flatMap((group) =>
@@ -391,16 +441,17 @@ const LinkageAnnotationPage = () => {
         ${exampleConflicts}`,
         'error'
       )
-      invalidateBatchRenameRules()
       return
     }
 
-    setMediaGroups(newMediaGroups)
-  }, [batchRenameRules.applied, JSON.stringify(mediaGroups)])
+    setAllRenamesValidated(true)
+  }, [batchRenameRulesValidated, JSON.stringify(batchRenameRules), JSON.stringify(mediaGroups)])
 
   const setConfirmationDialogOpen = useStore((state) => state.setConfirmationDialogOpen)
   const setConfirmationDialogProps = useStore((state) => state.setConfirmationDialogProps)
   const triggerActionAfterParse = async () => {
+    const actionToTrigger = jobMode === JOB_MODES.BY_VIDEO ? executeJob : moveToCompressionPage
+
     const filePathsWithPossibleNewNames = mediaGroups.flatMap((group) =>
       group.mediaList.map((media) => ({
         file_path: media.filePath,
@@ -411,6 +462,7 @@ const LinkageAnnotationPage = () => {
     const someWindowsPathsTooLong = await ingestAPI.validatePathLengths(
       jobMode,
       sourceFolder,
+      observerCode,
       filePathsWithPossibleNewNames
     )
     if (someWindowsPathsTooLong) {
@@ -422,30 +474,25 @@ const LinkageAnnotationPage = () => {
     }
 
     let invalidPaths = []
-    if (JSON.stringify(batchRenameRules) !== JSON.stringify(initialState.batchRenameRules)) {
+    if (batchRenameRules.length > 0) {
       invalidPaths = await ingestAPI.validateNonExistence(
         jobMode,
         sourceFolder,
+        observerCode,
         filePathsWithPossibleNewNames
       )
     }
-
     if (Array.isArray(invalidPaths) && invalidPaths.length > 0) {
-      const action = jobMode === JOB_MODES.BY_VIDEO ? executeJob : moveToCompressionPage
       setConfirmationDialogProps({
         title: 'Renames will overwrite',
         body: 'Some of the batch renames you applied have created filenames that will now overwrite existing files.\n\nAre you okay with this?',
-        onConfirm: action,
+        onConfirm: actionToTrigger,
       })
       setConfirmationDialogOpen(true)
       return
     }
 
-    if (jobMode === JOB_MODES.BY_VIDEO) {
-      executeJob()
-    } else {
-      moveToCompressionPage()
-    }
+    actionToTrigger()
   }
 
   /* Rendering Setup */
@@ -523,7 +570,7 @@ const LinkageAnnotationPage = () => {
       ]
     )
     const canTriggerNextAction = (() => {
-      if (!batchRenameRules.applied) return false
+      if (!batchRenameRulesValidated) return false
       return mediaGroupsFilteredAndIgnored.every((group) => {
         if (group.status === STATUSES.ERROR) return false
         return group.mediaList.every((media) => {
@@ -572,6 +619,9 @@ const LinkageAnnotationPage = () => {
                 data={group.mediaList}
                 isSubfolder={group.subfolder !== ROOT_FOLDER}
                 hasMainHorizontalScroll={hasMainHorizontalScroll}
+                selectedRows={selectedRows}
+                setRowSelection={setRowSelection}
+                onRowClick={toggleRowSelection}
               />
             </Box>
           ))}
@@ -617,7 +667,7 @@ const LinkageAnnotationPage = () => {
               compressionBuckets={compressionBuckets}
               setCompressionSelection={setCompressionSelection}
               sampleImages={sampleImages}
-              onImagesLoaded={whenAllImagesHaveLoaded}
+              incrementSampleImage={incrementSampleImage}
             />
           )}
         </Box>
@@ -654,4 +704,4 @@ const LinkageAnnotationPage = () => {
   return <BlankSlate message={`Unknown Phase: ${phase}`} />
 }
 
-export default LinkageAnnotationPage
+export default IngestTranscodePage

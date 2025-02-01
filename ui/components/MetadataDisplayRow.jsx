@@ -12,6 +12,7 @@ import {
   STATUS_COLUMN_WIDTH,
   ERRORS_COLUMN_WIDTH,
 } from '../constants/dimensions'
+import { getRowId } from '../utilities/transformers'
 
 const DefaultCell = React.forwardRef(({ children, align, width, sx, ...rest }, ref) => (
   <Box
@@ -53,8 +54,18 @@ const CellWithTooltip = ({ children, ...rest }) => {
 }
 
 const MetadataDisplayRow = ({ data, index, style }) => {
-  const { items, columns } = data
+  const { items, columns, selectedRows, onRowClick, onRowShiftClick } = data
   const row = items[index]
+  const rowId = getRowId(row)
+  const isSelected = selectedRows.includes(rowId)
+
+  const handleRowClick = (event) => {
+    if (event.shiftKey) {
+      onRowShiftClick(rowId)
+    } else {
+      onRowClick(rowId)
+    }
+  }
 
   const aligns = columns.map((column) => column.align)
   const widths = columns.map((column) => column.width)
@@ -75,7 +86,17 @@ const MetadataDisplayRow = ({ data, index, style }) => {
   const status = row.status
 
   return (
-    <Box role="row" style={style} sx={{ display: 'flex' }}>
+    <Box
+      role="row"
+      style={style}
+      sx={{
+        display: 'flex',
+        backgroundColor: isSelected ? 'secondary.dark25' : 'inherit',
+        cursor: 'pointer',
+        userSelect: 'none',
+      }}
+      onClick={handleRowClick}
+    >
       <DefaultCell width={STATUS_COLUMN_WIDTH} sx={{ paddingLeft: '2px' }}>
         <StatusIcon status={status} />
       </DefaultCell>

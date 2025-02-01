@@ -1,11 +1,9 @@
 import { useEffect, useState } from 'react'
 import Box from '@mui/material/Box'
-import Dialog from '@mui/material/Dialog'
 import Button from '@mui/material/Button'
-import IconButton from '@mui/material/IconButton'
-import CloseIcon from '@mui/icons-material/Close'
 import FileDownloadDoneIcon from '@mui/icons-material/FileDownloadDone'
 
+import JobQueueSidePad from './JobQueueSidePad'
 import { bytesToSize, completionTimeString } from '../utilities/strings'
 
 const TEN_DAYS = 10 * 24 * 60 * 60 * 1000
@@ -26,26 +24,6 @@ const JobReportPad = ({
   onExport,
   reloadJob,
 }) => {
-  const [top, setTop] = useState(0)
-  const [maxHeight, setMaxHeight] = useState(0)
-  const [delayedSlide, setDelayedSlide] = useState(false)
-
-  useEffect(() => {
-    if (open) {
-      const parentDialogBox = parent.getBoundingClientRect()
-      setTop(parentDialogBox.top)
-      setMaxHeight(parentDialogBox.height)
-      setTimeout(() => setDelayedSlide(true), 0)
-    } else {
-      setDelayedSlide(false)
-    }
-  }, [open])
-
-  const handleClose = () => {
-    setDelayedSlide(false)
-    setTimeout(onClose, 0)
-  }
-
   const olderThan10Days = new Date() - new Date(completedAt) > TEN_DAYS
 
   const [exporting, setExporting] = useState(false)
@@ -75,43 +53,14 @@ const JobReportPad = ({
   }
 
   return (
-    <Dialog
+    <JobQueueSidePad
       open={open}
-      disablePortal
-      hideBackdrop
-      PaperProps={{
-        sx: {
-          position: 'fixed',
-          padding: 2,
-          width: '450px',
-          maxHeight: maxHeight ? `${maxHeight}px` : undefined,
-          marginTop: 0,
-          top: `${top}px`,
-          left: delayedSlide ? 'calc(50% + 48px)' : 'calc(50% + 48px + 450px)',
-          transition: 'left 0.3s ease',
-
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'flex-start',
-          gap: 1,
-        },
-      }}
-      slotProps={{
-        root: { sx: { width: 0 } },
-      }}
+      onClose={onClose}
+      parent={parent}
+      width={450}
+      sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 1 }}
+      displayCloseButton
     >
-      <IconButton
-        onClick={handleClose}
-        size="small"
-        sx={(theme) => ({
-          position: 'absolute',
-          right: theme.spacing(1),
-          top: theme.spacing(1.7),
-        })}
-      >
-        <CloseIcon sx={{ fontSize: '24px' }} />
-      </IconButton>
-
       <Box
         sx={(theme) => ({
           width: '90%',
@@ -176,7 +125,7 @@ const JobReportPad = ({
           CSV available for 10 days
         </Box>
       </Box>
-    </Dialog>
+    </JobQueueSidePad>
   )
 }
 

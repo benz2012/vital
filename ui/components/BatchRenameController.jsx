@@ -1,14 +1,37 @@
+import { useState } from 'react'
 import Box from '@mui/material/Box'
 import TextField from '@mui/material/TextField'
 import Button from '@mui/material/Button'
 
+import { processRenameRulesetAgainstString } from '../utilities/strings'
+import { RENAME_DEFAULTS } from '../store/job'
+import TinyTextButton from './TinyTextButton'
+
 const BatchRenameController = ({
   oneFileName,
-  oneNewName,
-  batchRenameRules,
-  setOneBatchRenameRule,
-  applyBatchRenameRules,
+  addBatchRenameRuleset,
+  selectedRows = [],
+  clearRowSelection,
 }) => {
+  const [currentRuleset, setCurrentRuleset] = useState(RENAME_DEFAULTS)
+  const isDefaultState = Object.entries(currentRuleset).every(
+    ([key, value]) => RENAME_DEFAULTS[key] === value
+  )
+  const setOneRule = (ruleKey) => (event) =>
+    setCurrentRuleset((prev) => ({ ...prev, [ruleKey]: event.target.value }))
+
+  // Demo the current rules against a filename to show the user what will happen
+  const oneNewName = processRenameRulesetAgainstString(currentRuleset, oneFileName)
+
+  const handleApply = () => {
+    addBatchRenameRuleset({
+      id: window.crypto.randomUUID(),
+      filePaths: selectedRows,
+      ...currentRuleset,
+    })
+    setCurrentRuleset(RENAME_DEFAULTS)
+  }
+
   return (
     <>
       <Box sx={{ fontSize: '20px' }}>
@@ -31,7 +54,6 @@ const BatchRenameController = ({
           gap: 1,
           paddingTop: 0.5,
           marginTop: -0.5,
-          overflow: 'auto',
         }}
       >
         <Box sx={{ display: 'flex', gap: 1 }}>
@@ -40,16 +62,16 @@ const BatchRenameController = ({
             type="number"
             size="small"
             color="secondary"
-            value={batchRenameRules.trimStart}
-            onChange={(event) => setOneBatchRenameRule('trimStart', event.target.value)}
+            value={currentRuleset.trimStart}
+            onChange={setOneRule('trimStart')}
           />
           <TextField
             label="Trim End"
             type="number"
             color="secondary"
             size="small"
-            value={batchRenameRules.trimEnd}
-            onChange={(event) => setOneBatchRenameRule('trimEnd', event.target.value)}
+            value={currentRuleset.trimEnd}
+            onChange={setOneRule('trimEnd')}
           />
         </Box>
         <Box sx={{ display: 'flex', gap: 1 }}>
@@ -57,15 +79,15 @@ const BatchRenameController = ({
             label="Add Prefix"
             size="small"
             color="secondary"
-            value={batchRenameRules.prefix}
-            onChange={(event) => setOneBatchRenameRule('prefix', event.target.value)}
+            value={currentRuleset.prefix}
+            onChange={setOneRule('prefix')}
           />
           <TextField
             label="Add Suffix"
             size="small"
             color="secondary"
-            value={batchRenameRules.suffix}
-            onChange={(event) => setOneBatchRenameRule('suffix', event.target.value)}
+            value={currentRuleset.suffix}
+            onChange={setOneRule('suffix')}
           />
         </Box>
         <Box sx={{ display: 'flex', gap: 1 }}>
@@ -73,16 +95,16 @@ const BatchRenameController = ({
             label="Insert Text"
             size="small"
             color="secondary"
-            value={batchRenameRules.insertText}
-            onChange={(event) => setOneBatchRenameRule('insertText', event.target.value)}
+            value={currentRuleset.insertText}
+            onChange={setOneRule('insertText')}
           />
           <TextField
             label="Insert At"
             type="number"
             size="small"
             color="secondary"
-            value={batchRenameRules.insertAt}
-            onChange={(event) => setOneBatchRenameRule('insertAt', event.target.value)}
+            value={currentRuleset.insertAt}
+            onChange={setOneRule('insertAt')}
           />
         </Box>
         <Box sx={{ display: 'flex', gap: 1 }}>
@@ -90,27 +112,51 @@ const BatchRenameController = ({
             label="Find"
             size="small"
             color="secondary"
-            value={batchRenameRules.findString}
-            onChange={(event) => setOneBatchRenameRule('findString', event.target.value)}
+            value={currentRuleset.findString}
+            onChange={setOneRule('findString')}
           />
           <TextField
             label="Replace With"
             size="small"
             color="secondary"
-            value={batchRenameRules.replaceString}
-            onChange={(event) => setOneBatchRenameRule('replaceString', event.target.value)}
+            value={currentRuleset.replaceString}
+            onChange={setOneRule('replaceString')}
           />
         </Box>
-        <Button
-          variant="contained"
-          color="secondary"
-          sx={{ alignSelf: 'flex-end', color: 'white' }}
-          disableElevation
-          onClick={applyBatchRenameRules}
-          disabled={batchRenameRules.applied}
-        >
-          {batchRenameRules.applied ? 'Rules Applied' : 'Apply Rules'}
-        </Button>
+        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+          <Button
+            variant="contained"
+            color="secondary"
+            sx={{ alignSelf: 'flex-end', color: 'white' }}
+            disableElevation
+            onClick={handleApply}
+            disabled={isDefaultState}
+          >
+            Apply Rules
+          </Button>
+          <Box sx={{ fontWeight: 300 }}>
+            {selectedRows.length === 0 ? (
+              <>
+                to{' '}
+                <Box component="span" sx={{ fontWeight: 700 }}>
+                  All
+                </Box>{' '}
+                rows
+              </>
+            ) : (
+              <>
+                to{' '}
+                <Box component="span" sx={{ color: 'secondary.main', fontWeight: 700 }}>
+                  {selectedRows.length}
+                </Box>{' '}
+                selected rows
+              </>
+            )}
+          </Box>
+          {selectedRows.length > 0 && (
+            <TinyTextButton onClick={clearRowSelection}>clear &times;</TinyTextButton>
+          )}
+        </Box>
       </Box>
     </>
   )

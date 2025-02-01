@@ -9,15 +9,17 @@ import Button from '@mui/material/Button'
 import AutorenewIcon from '@mui/icons-material/Autorenew'
 
 import useJobStore from '../store/job'
-import { leafPath } from '../utilities/paths'
+import { leafPath, dateObserverFolderData, safeObserverCode } from '../utilities/paths'
 import { bytesToSize } from '../utilities/strings'
+import { calculateCompressedSizes } from '../utilities/numbers'
 import STATUSES from '../constants/statuses'
-import { IMAGE_QUALITIES, BUCKET_THRESHOLDS } from '../constants/fileTypes'
+import { COMPRESSION_OPTIONS } from '../constants/fileTypes'
 
 import Sidebar from '../components/Sidebar'
 import SidebarHeader from '../components/SidebarHeader'
-import StyledButton from '../components/StyledButton'
 import TinyTextButton from '../components/TinyTextButton'
+import FilesizeSwarmHistogram from '../components/FilesizeSwarmHistogram'
+import PhaseTriggerSection from '../components/PhaseTriggerSection'
 
 const CompressionSidebar = ({
   status,
@@ -34,47 +36,47 @@ const CompressionSidebar = ({
   canTrigger,
   onTriggerAction,
 }) => {
-  const buckets = ['small', 'medium', 'large']
   const sourceFolder = useJobStore((state) => state.sourceFolder)
+  const observerCode = useJobStore((state) => state.observerCode)
   const compressionBuckets = useJobStore((state) => state.compressionBuckets)
+  const multiDayImport = useJobStore((state) => state.multiDayImport)
+  const setMultiDayImport = useJobStore((state) => state.setMultiDayImport)
 
-  let smallChoice = IMAGE_QUALITIES[compressionBuckets.small?.selection]?.compressionAmount
-  let mediumChoice = IMAGE_QUALITIES[compressionBuckets.medium?.selection]?.compressionAmount
-  let largeChoice = IMAGE_QUALITIES[compressionBuckets.large?.selection]?.compressionAmount
-
-  if (smallChoice === 'No') {
-    smallChoice = 'None'
-  }
-  if (mediumChoice === 'No') {
-    mediumChoice = 'None'
-  }
-  if (largeChoice === 'No') {
-    largeChoice = 'None'
-  }
-
-  let totalSavings = 0
-  buckets.forEach((bucket) => {
-    const savingsForBucket =
-      compressionBuckets[bucket].size -
-      compressionBuckets[bucket].size *
-        IMAGE_QUALITIES[compressionBuckets[bucket]?.selection]?.compressionRatio
-    totalSavings += savingsForBucket || 0
+  const allOriginalSizes = []
+  const allCompressedSizes = []
+  Object.values(compressionBuckets).forEach((bucket) => {
+    const { selection, fileSizes, resolutions } = bucket
+    allOriginalSizes.push(...fileSizes)
+    const compressedSizes = calculateCompressedSizes(selection, fileSizes, resolutions)
+    allCompressedSizes.push(...compressedSizes)
   })
 
-  let totalImages = 0
-  totalImages += compressionBuckets.small?.images?.length || 0
-  totalImages += compressionBuckets.medium?.images?.length || 0
-  totalImages += compressionBuckets.large?.images?.length || 0
+  const totalSavings = allOriginalSizes.reduce((acc, size, index) => {
+    return acc + size - allCompressedSizes[index]
+  }, 0)
+
+  const totalImages = Object.values(compressionBuckets).reduce(
+    (acc, bucket) => acc + bucket.images.length,
+    0
+  )
 
   const jobIdDark = useJobStore((state) => state.jobIdDark)
   const triggerDarkImagesIdentify = useJobStore((state) => state.triggerDarkImagesIdentify)
   const colorCorrectApplied = useJobStore((state) => state.colorCorrectApplied)
   const setColorCorrectApplied = useJobStore((state) => state.setColorCorrectApplied)
 
+  const sourceFolderName = leafPath(sourceFolder) || ''
+  const folderData = dateObserverFolderData(sourceFolderName)
+  const titleAddendum =
+    folderData.observerCode !== safeObserverCode(observerCode)
+      ? `with new observer code: ${observerCode}`
+      : undefined
+
   return (
     <Sidebar spacing={1}>
       <SidebarHeader
-        title={leafPath(sourceFolder)}
+        title={sourceFolderName}
+        titleAddendum={titleAddendum}
         subtitle={`choosing compression settings for`}
       />
       {status === STATUSES.LOADING && (
@@ -94,87 +96,87 @@ const CompressionSidebar = ({
             overflowY: 'auto',
           }}
         >
+          {/* Bucket Summary Sections */}
+          {Object.entries(compressionBuckets).map(([bucketKey, bucket]) => {
+            const { selection, images, fileSizes, resolutions } = bucket
+
+            let megapixelBracketText = ''
+            if (bucket.bottomThreshold === 0) {
+              megapixelBracketText += 'each smaller than'
+              megapixelBracketText += ` ${compressionBuckets[bucket.bucketAbove].bottomThreshold / 1_000_000}`
+            } else if (bucket.bucketAbove === null) {
+              megapixelBracketText += 'each larger than'
+              megapixelBracketText += ` ${bucket.bottomThreshold / 1_000_000}`
+            } else {
+              megapixelBracketText += 'each between'
+              megapixelBracketText += ` ${bucket.bottomThreshold / 1_000_000}`
+              megapixelBracketText += ' and'
+              megapixelBracketText += ` ${compressionBuckets[bucket.bucketAbove].bottomThreshold / 1_000_000}`
+            }
+            megapixelBracketText += ' megapixels'
+
+            let choiceAmount = COMPRESSION_OPTIONS[selection]?.compressionAmount
+            if (choiceAmount === 'No') {
+              choiceAmount = 'None'
+            }
+
+            const compressedSizes = calculateCompressedSizes(selection, fileSizes, resolutions)
+
+            return (
+              <Box key={bucketKey}>
+                <Box sx={{ fontSize: '20px' }}>{bucket.name} Images Bucket</Box>
+                <Box
+                  sx={{
+                    fontSize: '14px',
+                    lineHeight: '14px',
+                    fontWeight: 300,
+                    color: 'text.secondary',
+                  }}
+                >
+                  <Box component="span" sx={{ color: 'text.primary' }}>
+                    {images.length} images
+                  </Box>{' '}
+                  {megapixelBracketText}
+                </Box>
+                {images.length > 0 && (
+                  <>
+                    <Box component="span" sx={{ color: 'text.secondary' }}>
+                      Compression choice:
+                    </Box>{' '}
+                    <Box
+                      component="span"
+                      sx={{ color: choiceAmount === 'None' ? 'text.primary' : 'primary.main' }}
+                    >
+                      {choiceAmount}
+                    </Box>
+                    <Box sx={{ marginTop: 0.5, marginRight: 1 }}>
+                      <FilesizeSwarmHistogram
+                        sizesBefore={fileSizes}
+                        sizesAfter={compressedSizes}
+                      />
+                    </Box>
+                  </>
+                )}
+              </Box>
+            )
+          })}
+
           <Box>
-            <Box sx={{ fontSize: '20px' }}>Small Images Bucket</Box>
-            <Box
-              sx={{
-                fontSize: '14px',
-                lineHeight: '14px',
-                fontWeight: 300,
-                color: 'text.secondary',
-              }}
-            >
-              <Box component="span" sx={{ color: 'text.primary' }}>
-                {compressionBuckets.small?.images?.length} images
-              </Box>{' '}
-              each smaller than {BUCKET_THRESHOLDS.medium / 1_000_000} megapixels
+            <Box sx={{ fontSize: '20px' }}>
+              Total Expected Savings:{' '}
+              <Box
+                component="span"
+                sx={{ color: totalSavings === 0 ? 'text.primary' : 'primary.main' }}
+              >
+                {totalSavings === 0 ? '' : '~'}
+                {bytesToSize(totalSavings)}
+              </Box>
             </Box>
-            <Box component="span" sx={{ color: 'text.secondary' }}>
-              Compression choice:
-            </Box>{' '}
-            <Box
-              component="span"
-              sx={{ color: smallChoice === 'None' ? 'text.primary' : 'primary.main' }}
-            >
-              {smallChoice}
-            </Box>
-          </Box>
-          <Box>
-            <Box sx={{ fontSize: '20px' }}>Medium Images Bucket</Box>
-            <Box
-              sx={{
-                fontSize: '14px',
-                lineHeight: '14px',
-                fontWeight: 300,
-                color: 'text.secondary',
-              }}
-            >
-              <Box component="span" sx={{ color: 'text.primary' }}>
-                {compressionBuckets.medium?.images?.length} images
-              </Box>{' '}
-              each between {BUCKET_THRESHOLDS.medium / 1_000_000} and{' '}
-              {BUCKET_THRESHOLDS.large / 1_000_000} megapixels
-            </Box>
-            <Box component="span" sx={{ color: 'text.secondary' }}>
-              Compression choice:
-            </Box>{' '}
-            <Box
-              component="span"
-              sx={{ color: mediumChoice === 'None' ? 'text.primary' : 'primary.main' }}
-            >
-              {mediumChoice}
-            </Box>
-          </Box>
-          <Box>
-            <Box sx={{ fontSize: '20px' }}>Large Images Bucket</Box>
-            <Box
-              sx={{
-                fontSize: '14px',
-                lineHeight: '14px',
-                fontWeight: 300,
-                color: 'text.secondary',
-              }}
-            >
-              <Box component="span" sx={{ color: 'text.primary' }}>
-                {compressionBuckets.large?.images?.length} images
-              </Box>{' '}
-              each larger than {BUCKET_THRESHOLDS.large / 1_000_000} megapixels
-            </Box>
-            <Box component="span" sx={{ color: 'text.secondary' }}>
-              Compression choice:
-            </Box>{' '}
-            <Box
-              component="span"
-              sx={{ color: largeChoice === 'None' ? 'text.primary' : 'primary.main' }}
-            >
-              {largeChoice}
-            </Box>
-          </Box>
-          <Box>
-            <Box sx={{ fontSize: '20px' }}>Total Expected Savings</Box>
-            <Box sx={{ color: totalSavings === 0 ? 'text.primary' : 'secondary.main' }}>
-              {totalSavings === 0 ? '' : '~'}
-              {bytesToSize(totalSavings)}
+            <Box sx={{ marginTop: 0.5, marginRight: 1 }}>
+              <FilesizeSwarmHistogram
+                sizesBefore={allOriginalSizes}
+                sizesAfter={allCompressedSizes}
+              />
             </Box>
           </Box>
 
@@ -222,7 +224,7 @@ const CompressionSidebar = ({
               <RadioGroup
                 value={`${colorCorrectApplied}`}
                 onChange={(event) => setColorCorrectApplied(event.target.value === 'true')}
-                sx={{ marginTop: 0.5, marginLeft: 0.5, marginBottom: 0.5 }}
+                sx={{ marginTop: 0.5, marginLeft: 0.5, marginBottom: 0.5, position: 'relative' }}
               >
                 <FormControlLabel
                   label="No Correction"
@@ -334,17 +336,14 @@ const CompressionSidebar = ({
       )}
 
       {status === STATUSES.COMPLETED && (
-        <>
-          <Box sx={{ flexGrow: 1 }} />
-          <StyledButton
-            variant="outlined"
-            fullWidth
-            disabled={!canTrigger}
-            onClick={onTriggerAction}
-          >
-            {actionName}
-          </StyledButton>
-        </>
+        <PhaseTriggerSection
+          actionName={actionName}
+          canTrigger={canTrigger}
+          onTriggerAction={onTriggerAction}
+          multiDayImport={multiDayImport}
+          setMultiDayImport={setMultiDayImport}
+          showMultiDayImport
+        />
       )}
     </Sidebar>
   )

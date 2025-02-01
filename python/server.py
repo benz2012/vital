@@ -5,6 +5,8 @@ from flask_cors import CORS
 
 from utils.custom_flask_logs import FilterRequestLogs
 from utils.death import terminate_all
+from utils.cleanup import init_cleanup_tasks
+
 from blueprints.linkages_controller.linkages import bp as linkages_bp
 from blueprints.sightings_controller.sightings import bp as sightings_bp
 from blueprints.settings_controller.settings import bp as settings_bp
@@ -36,6 +38,7 @@ app.register_blueprint(queue_bp, url_prefix='/queue')
 app.register_blueprint(observer_bp, url_prefix='/observers')
 
 scheduler = SchedulerService()
+init_cleanup_tasks()
 
 @app.route('/ping', methods=['GET'])
 def ping():

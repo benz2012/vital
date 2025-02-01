@@ -4,7 +4,7 @@ import { Typography } from '@mui/material'
 import openFolderIcon from '../assets/open-folder-64.png'
 import { blackPixelToTheme } from '../theme'
 
-const SidebarHeader = ({ title, subtitle }) => (
+const SidebarHeader = ({ title, titleAddendum, subtitle }) => (
   <Box
     sx={{
       width: '100%',
@@ -18,7 +18,7 @@ const SidebarHeader = ({ title, subtitle }) => (
     <Box
       sx={{
         display: 'flex',
-        alignItems: 'center',
+        alignItems: 'flex-start',
         gap: 1,
         overflowX: 'clip',
         overflowY: 'visible',
@@ -37,6 +37,11 @@ const SidebarHeader = ({ title, subtitle }) => (
       />
       <Typography sx={{ fontSize: '24px', lineHeight: '24px', fontWeight: 700 }}>
         {title}
+        {titleAddendum && (
+          <Typography component="span" sx={{ display: 'block', lineHeight: '16px' }}>
+            {titleAddendum}
+          </Typography>
+        )}
       </Typography>
     </Box>
   </Box>

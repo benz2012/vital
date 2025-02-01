@@ -13,6 +13,7 @@ import CloseIcon from '@mui/icons-material/Close'
 import PlayArrowIcon from '@mui/icons-material/PlayArrow'
 import ScheduleIcon from '@mui/icons-material/Schedule'
 import DeleteSweepIcon from '@mui/icons-material/DeleteSweep'
+import { Grid4x4 } from '@mui/icons-material'
 
 import useStore from '../store'
 import useQueueStore, { canStart } from '../store/queue'
@@ -27,6 +28,7 @@ import SchedulePad from '../components/SchedulePad'
 import TinyTextButton from '../components/TinyTextButton'
 import TaskDetailsPad from '../components/TaskDetailsPad'
 import JobReportPad from '../components/JobReportPad'
+import FlowSheetPad from '../components/FlowSheetPad'
 
 const JobQueue = () => {
   const jobQueueOpen = useStore((state) => state.jobQueueOpen)
@@ -58,6 +60,7 @@ const JobQueue = () => {
   const toggleSchedule = () => {
     setTaskDetailsJobId(null)
     setJobReportId(null)
+    setFlowSheetOpen(false)
     setScheduleOpen(!scheduleOpen)
   }
 
@@ -88,8 +91,8 @@ const JobQueue = () => {
     setConfirmationDialogProps({
       title: 'Clean Up Jobs',
       body: `This action will:
-      Archive all jobs for which a Report CSV has been exported.
-      Archive all jobs older than 10 days.
+      - Archive all jobs for which a Report CSV has been exported.
+      - Archive all jobs older than 10 days.
 
       Are you sure you want to do this?`,
       onConfirm: async () => {
@@ -98,6 +101,13 @@ const JobQueue = () => {
       },
     })
     setConfirmationDialogOpen(true)
+  }
+
+  const triggerFlowSheetExport = async (forObserver) => {
+    const filePath = await window.api.selectFile(FILE_TYPES.FOLDER)
+    if (!filePath) return
+    const result = await ingestAPI.exportFlowSheet(filePath, forObserver)
+    return result
   }
 
   /* Task Details Data Logic */
@@ -114,6 +124,7 @@ const JobQueue = () => {
   const toggleTaskDetails = (jobId) => {
     setScheduleOpen(false)
     setJobReportId(null)
+    setFlowSheetOpen(false)
     setTaskDetailsJobId((prev) => (prev === jobId ? null : jobId))
   }
 
@@ -133,6 +144,7 @@ const JobQueue = () => {
   const toggleJobReport = (jobId) => {
     setScheduleOpen(false)
     setTaskDetailsJobId(null)
+    setFlowSheetOpen(false)
     setJobReportId((prev) => (prev === jobId ? null : jobId))
   }
   const triggerReportExport = async () => {
@@ -143,14 +155,38 @@ const JobQueue = () => {
   }
   const reloadOneCompletedJob = useQueueStore((state) => state.reloadOneCompletedJob)
 
+  /* Flow Sheet Export Logic */
+  const [flowSheetOpen, setFlowSheetOpen] = useState(false)
+  const toggleFlowSheet = () => {
+    setScheduleOpen(false)
+    setTaskDetailsJobId(null)
+    setJobReportId(null)
+    setFlowSheetOpen(!flowSheetOpen)
+  }
+  const completedObserverCodes = [
+    ...new Set(
+      completeJobs.map((job) => {
+        try {
+          return JSON.parse(job.data).observer_code
+        } catch (e) {
+          console.error(`Error parsing observer_code from job data: ${e}`)
+          return null
+        }
+      })
+    ),
+  ].toSorted()
+  const latestFlowSheet = useQueueStore((state) => state.latestFlowSheet)
+  const setLatestFlowSheet = useQueueStore((state) => state.setLatestFlowSheet)
+
   /* General effect, keep last */
   useEffect(() => {
     setScheduleOpen(false)
     setTaskDetailsJobId(null)
     setJobReportId(null)
+    setFlowSheetOpen(false)
   }, [jobQueueOpen])
 
-  const slideQueueOver = scheduleOpen || taskDetailsOpen || jobReportOpen
+  const slideQueueOver = scheduleOpen || taskDetailsOpen || jobReportOpen || flowSheetOpen
 
   /** Rendering Section **/
 
@@ -274,15 +310,26 @@ const JobQueue = () => {
 
         <Typography variant="h6" mt={2} sx={{ display: 'flex', justifyContent: 'space-between' }}>
           Complete Jobs
-          <Button
-            color="warning"
-            sx={{ textTransform: 'none' }}
-            endIcon={<DeleteSweepIcon />}
-            onClick={cleanUpJobs}
-            disabled={completeJobs.length === 0}
-          >
-            Clean Up Jobs
-          </Button>
+          <Box>
+            <Button
+              color="success"
+              sx={{ textTransform: 'none', marginRight: 1 }}
+              endIcon={<Grid4x4 />}
+              onClick={toggleFlowSheet}
+              disabled={completeJobs.length === 0}
+            >
+              Export PA Flow CSV
+            </Button>
+            <Button
+              color="warning"
+              sx={{ textTransform: 'none' }}
+              endIcon={<DeleteSweepIcon />}
+              onClick={cleanUpJobs}
+              disabled={completeJobs.length === 0}
+            >
+              Clean Up Jobs
+            </Button>
+          </Box>
         </Typography>
         {completeJobs.length === 0 && <Box sx={{ fontStyle: 'italic' }}>None</Box>}
 
@@ -336,6 +383,16 @@ const JobQueue = () => {
           data={jobReport?.data || {}}
           onExport={triggerReportExport}
           reloadJob={reloadOneCompletedJob}
+        />
+
+        <FlowSheetPad
+          open={flowSheetOpen}
+          onClose={() => setFlowSheetOpen(false)}
+          parent={queueDialogRef.current}
+          observerCodes={completedObserverCodes}
+          onExport={triggerFlowSheetExport}
+          latestFlowSheet={latestFlowSheet}
+          setLatestFlowSheet={setLatestFlowSheet}
         />
       </DialogContent>
     </Dialog>

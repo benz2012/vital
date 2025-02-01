@@ -1,12 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { VariableSizeList as VirtualList } from 'react-window'
 import Box from '@mui/material/Box'
-import Dialog from '@mui/material/Dialog'
-import IconButton from '@mui/material/IconButton'
-import CloseIcon from '@mui/icons-material/Close'
 
 import { titleCase } from '../utilities/strings'
 import STATUSES, { PROGRESS_MESSAGES } from '../constants/statuses'
+import JobQueueSidePad from './JobQueueSidePad'
 
 const textColorForStatus = (status) => {
   if (status === STATUSES.COMPLETED) {
@@ -78,25 +76,7 @@ const RowItem = ({ data, index, style }) => {
 }
 
 const TaskDetailsPad = ({ open, onClose, parent, jobName, tasks }) => {
-  const [top, setTop] = useState(0)
   const [maxHeight, setMaxHeight] = useState(0)
-  const [delayedSlide, setDelayedSlide] = useState(false)
-
-  useEffect(() => {
-    if (open) {
-      const parentDialogBox = parent.getBoundingClientRect()
-      setTop(parentDialogBox.top)
-      setMaxHeight(parentDialogBox.height)
-      setTimeout(() => setDelayedSlide(true), 0)
-    } else {
-      setDelayedSlide(false)
-    }
-  }, [open])
-
-  const handleClose = () => {
-    setDelayedSlide(false)
-    setTimeout(onClose, 0)
-  }
 
   const virtualListRef = useRef(null)
   const taskStatuses = tasks.map((task) => task.status)
@@ -105,38 +85,14 @@ const TaskDetailsPad = ({ open, onClose, parent, jobName, tasks }) => {
   }, [JSON.stringify(taskStatuses)])
 
   return (
-    <Dialog
+    <JobQueueSidePad
       open={open}
-      disablePortal
-      hideBackdrop
-      PaperProps={{
-        sx: {
-          position: 'fixed',
-          padding: 2,
-          width: '300px',
-          maxHeight: maxHeight ? `${maxHeight}px` : undefined,
-          marginTop: 0,
-          top: `${top}px`,
-          left: delayedSlide ? 'calc(50% + 48px)' : 'calc(50% + 48px + 300px)',
-          transition: 'left 0.3s ease',
-        },
-      }}
-      slotProps={{
-        root: { sx: { width: 0 } },
-      }}
+      onClose={onClose}
+      parent={parent}
+      width={300}
+      tellMaxHeight={setMaxHeight}
+      displayCloseButton
     >
-      <IconButton
-        onClick={handleClose}
-        size="small"
-        sx={(theme) => ({
-          position: 'absolute',
-          right: theme.spacing(1),
-          top: theme.spacing(1.7),
-        })}
-      >
-        <CloseIcon sx={{ fontSize: '24px' }} />
-      </IconButton>
-
       <Box
         sx={(theme) => ({
           width: '90%',
@@ -171,7 +127,7 @@ const TaskDetailsPad = ({ open, onClose, parent, jobName, tasks }) => {
       >
         {RowItem}
       </VirtualList>
-    </Dialog>
+    </JobQueueSidePad>
   )
 }
 

@@ -24,7 +24,7 @@ class ValidatorService:
     def __init__(self):
         self.settings_service = SettingsService()
 
-    def validate_media(self, source_dir, media_metadata, media_type):
+    def validate_media(self, source_dir, observer_code, media_metadata, media_type):
         validation_status = ValidationStatus()
 
         if not self.validate_length(media_metadata.file_path):
@@ -44,7 +44,7 @@ class ValidatorService:
         if validate_path == self.MEDIA_PATH_ERROR:
             validation_status.errors.append(self.MEDIA_PATH_ERROR)
 
-        if not self.validate_non_existence(source_dir, media_metadata.file_path, media_type):
+        if not self.validate_non_existence(source_dir, observer_code, media_metadata.file_path, media_type):
             validation_status.warnings.append(self.FILE_EXISTS_WARNING)
 
         return validation_status
@@ -102,9 +102,13 @@ class ValidatorService:
         grandparent_dir = os.path.dirname(parent_dir)
         return grandparent_dir == source_dir
 
-    def make_path_for_validators(self, source_dir, original_file_path, media_type, new_name=None):
+    def make_path_for_validators(self, source_dir, observer_code, original_file_path, media_type, new_name=None):
         source_dir_name = os.path.basename(source_dir)
         catalog_folder_info = extract_catalog_folder_info(source_dir_name)
+        # remove the source observer code and replace it with the observer code explictly set by the user
+        # later, construct_catalog_folder_path will clean the observer code if it has illegal characters
+        catalog_folder_info = catalog_folder_info[:-1] + (observer_code,)
+
         original_file_name = os.path.splitext(os.path.basename(original_file_path))[0]
         output_file_name = new_name or original_file_name
 
@@ -121,14 +125,15 @@ class ValidatorService:
         expected_final_file_path = os.path.join(optimized_dir_path, f'{output_file_name}.jpg')
         return expected_final_file_path
 
-    def validate_path_lengths(self, source_dir, original_file_path, media_type, new_name=None):
+    def validate_path_lengths(self, source_dir, observer_code, original_file_path, media_type, new_name=None):
+        # This is a WindowsOS limitation
         return len(
-            self.make_path_for_validators(source_dir, original_file_path, media_type, new_name)
+            self.make_path_for_validators(source_dir, observer_code, original_file_path, media_type, new_name)
         ) < 256
 
-    def validate_non_existence(self, source_dir, original_file_path, media_type, new_name=None):
+    def validate_non_existence(self, source_dir, observer_code, original_file_path, media_type, new_name=None):
         return not os.path.exists(
-            self.make_path_for_validators(source_dir, original_file_path, media_type, new_name)
+            self.make_path_for_validators(source_dir, observer_code, original_file_path, media_type, new_name)
         )
 
     def validate_year_for_source(self, source_dir):

@@ -20,47 +20,61 @@ const exportReportCSV = (jobId, folderPath) =>
   getJSON(
     `${ingestURL}/export_report?job_id=${jobId}&output_folder=${encodeURIComponent(folderPath)}`
   )
+const exportFlowSheet = (folderPath, forObserver) =>
+  getJSON(
+    `${ingestURL}/export_flowsheet?output_folder=${encodeURIComponent(folderPath)}&observer=${forObserver}`
+  )
 const cleanUpJobs = () => postJSON(`${ingestURL}/clean_up_jobs`)
 
 // Metadata Methods
 const countFiles = (sourceFolder) =>
   getJSON(`${ingestURL}/count_files/${encodeURIComponent(sourceFolder)}`)
 
-const parse = async (mode, sourceFolder) => {
+const parse = async (mode, sourceFolder, observerCode) => {
   const { data } = await postJSONWithResponse(`${ingestURL}/parse_${mode}s`, {
     source_dir: sourceFolder,
+    observer_code: observerCode,
   })
   return data?.job_id
 }
 const getJobResultData = (jobId) => getJSON(`${ingestURL}/job_data/${jobId}`)
 
-const validatePathLengths = async (mode, sourceFolder, filePaths) => {
+const validatePathLengths = async (mode, sourceFolder, observerCode, filePaths) => {
   const { data } = await postJSONWithResponse(`${ingestURL}/validate_path_lengths/${mode}`, {
     source_dir: sourceFolder,
+    observer_code: observerCode,
     file_path_list: filePaths,
   })
   return data
 }
 
-const validateNonExistence = async (mode, sourceFolder, filePaths) => {
+const validateNonExistence = async (mode, sourceFolder, observerCode, filePaths) => {
   const { data } = await postJSONWithResponse(`${ingestURL}/validate_non_existence/${mode}`, {
     source_dir: sourceFolder,
+    observer_code: observerCode,
     file_path_list: filePaths,
   })
   return data
 }
 
 // Sample Image Methods
-const createSampleImages = async (small, medium, large) => {
+const createSampleImages = async (small, medium, large, xlarge) => {
   const { data } = await postJSONWithResponse(`${ingestURL}/sample`, {
     small_image_file_path: small || undefined,
     medium_image_file_path: medium || undefined,
     large_image_file_path: large || undefined,
+    xlarge_image_file_path: xlarge || undefined,
+  })
+  return data?.job_id
+}
+const createOneSampleImageSet = async (bucketKey, filePath) => {
+  const { data } = await postJSONWithResponse(`${ingestURL}/sample`, {
+    [`${bucketKey}_image_file_path`]: filePath,
   })
   return data?.job_id
 }
 const getJobSampleData = (jobId) => getJSON(`${ingestURL}/job/${jobId}/sample_file_data`)
-const deleteSampleImages = (jobId) => deleteThis(`${ingestURL}/sample/${jobId}`)
+const deleteSampleImages = () => deleteThis(`${ingestURL}/sample/000`)
 
 const identifyDarkImages = async (paths) => {
   const { data } = await postJSONWithResponse(`${ingestURL}/dark`, {
@@ -98,6 +112,10 @@ const transcode = async (
   return data?.job_id
 }
 
+const queueMultiDayImport = async (payload) => {
+  await postJSONWithResponse(`${ingestURL}/transcode_multi`, payload)
+}
+
 const pruneOldTasks = () => deleteThis(`${ingestURL}/delete_old_tasks`)
 
 export default {
@@ -108,6 +126,7 @@ export default {
   getIncompleteJobs,
   getCompleteJobs,
   exportReportCSV,
+  exportFlowSheet,
   cleanUpJobs,
   countFiles,
   parse,
@@ -116,11 +135,13 @@ export default {
   validateNonExistence,
   getJobSampleData,
   createSampleImages,
+  createOneSampleImageSet,
   deleteSampleImages,
   identifyDarkImages,
   getDarkData,
   createDarkSampleImages,
   deleteDarkSampleImages,
   transcode,
+  queueMultiDayImport,
   pruneOldTasks,
 }

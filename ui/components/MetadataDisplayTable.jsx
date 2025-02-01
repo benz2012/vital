@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState, useRef } from 'react'
 import { VariableSizeList as VirtualList } from 'react-window'
 import Box from '@mui/material/Box'
 
-import MetadataDisplayRow from './MetadataDisplayRow'
 import STATUSES from '../constants/statuses'
 import {
   TITLEBAR_HEIGHT,
@@ -12,7 +11,9 @@ import {
   STATUS_COLUMN_WIDTH,
   ERRORS_COLUMN_WIDTH,
 } from '../constants/dimensions'
+import { getRowId } from '../utilities/transformers'
 import MetadataDisplayHeader from './MetadataDisplayHeader'
+import MetadataDisplayRow from './MetadataDisplayRow'
 
 const standardComparator = (a, b, orderBy, orderByAlt, transformer) => {
   const currentA = orderByAlt ? a[orderByAlt] : a[orderBy]
@@ -37,7 +38,15 @@ const statusTransformer = (status) => {
   return 3
 }
 
-const MetadataDisplayTable = ({ columns, data, isSubfolder, hasMainHorizontalScroll }) => {
+const MetadataDisplayTable = ({
+  columns,
+  data,
+  isSubfolder,
+  hasMainHorizontalScroll,
+  selectedRows,
+  setRowSelection,
+  onRowClick,
+}) => {
   // Sort by File Name as Default (aka index 0)
   const [order, setOrder] = useState('asc')
   const [orderBy, setOrderBy] = useState(columns[0].key)
@@ -79,9 +88,42 @@ const MetadataDisplayTable = ({ columns, data, isSubfolder, hasMainHorizontalScr
     (hasMainHorizontalScroll ? 20 : 0)
   // expectedTableContentHeight is so that we can render smaller tables when it's a small list. We could calculate a size based on number of rows
   // but it's too expensive, since each row could have dynamic height. So instead we just use use a half-height when num rows is small
+  // this of course looks bad when there's only one metadata table, but each table doesn't know about the others, so I don't have a solution for that
   const expectedTableContentHeight =
     sortedData.length < 10 ? availableViewportHeight / 2 : Number.MAX_SAFE_INTEGER
   const virtualListHeight = Math.min(availableViewportHeight, expectedTableContentHeight)
+
+  const onRowShiftClick = (rowId) => {
+    const rowIndexClicked = sortedData.findIndex((row) => getRowId(row) === rowId)
+
+    const firstSelectedRowIndex = sortedData.findIndex((row) =>
+      selectedRows.includes(getRowId(row))
+    )
+    const lastSelectedRowIndexReversed = sortedData
+      .slice()
+      .reverse()
+      .findIndex((row) => {
+        const aSelectedRowWasFound = selectedRows.includes(getRowId(row))
+        return aSelectedRowWasFound
+      })
+    const indexesLength = sortedData.length - 1
+    const lastSelectedRowIndex = indexesLength - lastSelectedRowIndexReversed
+
+    const newSelectedRows = []
+    if (firstSelectedRowIndex < 0) {
+      newSelectedRows.push(rowId)
+    } else {
+      for (
+        let i = Math.min(firstSelectedRowIndex, rowIndexClicked);
+        i <= Math.max(lastSelectedRowIndex, rowIndexClicked);
+        i++
+      ) {
+        newSelectedRows.push(getRowId(sortedData[i]))
+      }
+    }
+
+    setRowSelection(newSelectedRows)
+  }
 
   return (
     <Box role="table" sx={{ width: '100%' }}>
@@ -98,6 +140,9 @@ const MetadataDisplayTable = ({ columns, data, isSubfolder, hasMainHorizontalScr
           itemData={{
             items: sortedData,
             columns,
+            selectedRows,
+            onRowClick,
+            onRowShiftClick,
           }}
           itemCount={sortedData.length}
           overscanCount={10}

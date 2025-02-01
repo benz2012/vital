@@ -42,7 +42,8 @@ def get_parsed_videos(job_id):
 def parse_images():
     payload = request.json
     source_dir = payload['source_dir']
-    job_id = ingest_service.create_parse_media_job(source_dir, MediaType.IMAGE)
+    observer_code = payload['observer_code']
+    job_id = ingest_service.create_parse_media_job(source_dir, observer_code, MediaType.IMAGE)
     return {"job_id": job_id}
 
 
@@ -51,7 +52,8 @@ def parse_images():
 def parse_videos():
     payload = request.json
     source_dir = payload['source_dir']
-    job_id = ingest_service.create_parse_media_job(source_dir, MediaType.VIDEO)
+    observer_code = payload['observer_code']
+    job_id = ingest_service.create_parse_media_job(source_dir, observer_code, MediaType.VIDEO)
     return {"job_id": job_id}
 
 
@@ -60,6 +62,7 @@ def parse_videos():
 def validate_path_lengths(media_str):
     payload = request.json
     source_dir = payload['source_dir']
+    observer_code = payload['observer_code']
     media_type = MediaType(media_str)
     file_path_list = payload['file_path_list']
 
@@ -67,6 +70,7 @@ def validate_path_lengths(media_str):
     for file_path_obj in file_path_list:
         is_valid = validator_service.validate_path_lengths(
             source_dir,
+            observer_code,
             file_path_obj['file_path'],
             media_type,
             file_path_obj.get('new_name')
@@ -82,6 +86,7 @@ def validate_path_lengths(media_str):
 def validate_non_existence(media_str):
     payload = request.json
     source_dir = payload['source_dir']
+    observer_code = payload['observer_code']
     media_type = MediaType(media_str)
     file_path_list = payload['file_path_list']
 
@@ -89,6 +94,7 @@ def validate_non_existence(media_str):
     for file_path_obj in file_path_list:
         is_valid = validator_service.validate_non_existence(
             source_dir,
+            observer_code,
             file_path_obj['file_path'],
             media_type,
             file_path_obj.get('new_name')
@@ -138,6 +144,15 @@ def queue_transcode():
     return {"job_id": job_id}
 
 
+@bp.route('/transcode_multi', methods=['POST'])
+@tryable_json_endpoint
+def queue_transcode_multi():
+    payload = request.json
+    # payload is a list of objects similar to those in /transcode
+    transcode_service.queue_transcode_multi(payload)
+    return True
+
+
 @bp.route('/job/<int:job_id>', methods=['DELETE'])
 @tryable_json_endpoint
 def delete_job(job_id):
@@ -182,8 +197,14 @@ def create_sample_images():
     small_image_file_path = payload.get('small_image_file_path', None)
     medium_image_file_path = payload.get('medium_image_file_path', None)
     large_image_file_path = payload.get('large_image_file_path', None)
+    xlarge_image_file_path = payload.get('xlarge_image_file_path', None)
 
-    job_id = transcode_service.create_sample_images(small_image_file_path, medium_image_file_path, large_image_file_path)
+    job_id = transcode_service.create_sample_images(
+        small_image_file_path,
+        medium_image_file_path,
+        large_image_file_path,
+        xlarge_image_file_path
+    )
     return {"job_id": job_id}
 
 
@@ -191,7 +212,7 @@ def create_sample_images():
 @tryable_json_endpoint
 def delete_sample_images(job_id):
     sample_image_dir = transcode_service.get_sample_image_dir()
-    return transcode_service.delete_sample_images(job_id, sample_image_dir)
+    return transcode_service.delete_sample_images(None, sample_image_dir)
 
 
 @bp.route('/dark_sample/<int:job_id>', methods=["DELETE"])
@@ -207,15 +228,6 @@ def delete_old_tasks():
     deleted_ids = task_service.delete_old_tasks()
     print_out(f'Deleted {len(deleted_ids)} old tasks')
     return {"deleted_ids": deleted_ids}
-
-
-@bp.route('/export_report', methods=["GET"])
-@tryable_json_endpoint
-def export_report():
-    job_id = request.args.get('job_id')
-    output_folder = unquote(request.args.get('output_folder'))
-
-    return ingest_service.export_report(job_id, output_folder)
 
 
 @bp.route('/dark', methods=['POST'])
@@ -240,3 +252,21 @@ def create_dark_samples():
     image_paths = payload['image_paths']
     job_id = color_correct_service.create_dark_sample_images(image_paths)
     return {"job_id": job_id}
+
+
+@bp.route('/export_report', methods=["GET"])
+@tryable_json_endpoint
+def export_report():
+    job_id = request.args.get('job_id')
+    output_folder = unquote(request.args.get('output_folder'))
+
+    return ingest_service.export_report(job_id, output_folder)
+
+
+@bp.route('/export_flowsheet', methods=["GET"])
+@tryable_json_endpoint
+def export_flowsheet():
+    output_folder = unquote(request.args.get('output_folder'))
+    observer_code = unquote(request.args.get('observer'))
+
+    return ingest_service.export_flowsheet(output_folder, observer_code)

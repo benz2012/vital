@@ -18,6 +18,8 @@ from services.task_service import TaskService
 from services.metadata_service import MediaType
 from services.report_service import ReportService
 from services.ingest_service import IngestService
+from services.image_metadata_service import ImageMetadataService
+from services.video_metadata_service import VideoMetadataService
 from model.ingest.job_model import JobType, JobStatus, JobErrors
 
 from settings.settings_service import SettingsService, SettingsEnum
@@ -35,9 +37,9 @@ from utils.file_path import (
     RETRY_DELAY_SEC
 )
 from utils.prints import print_out, print_err
-from utils.numbers import find_closest
+from utils.numbers import find_closest, determine_bucket_for_resolution
 from utils.death import add_terminator, remove_last_terminator
-from utils.constants import image_extensions
+from utils.constants import image_extensions, video_extensions
 from utils.transcode_snippets import auto_exposure_correct
 
 
@@ -73,12 +75,18 @@ class TranscodeService:
     }
     TRNSC_2_TRNSFR_BNDWTHS = list(TRNSC_2_TRNSFR_PRGS_RATIOS.keys())
 
+    # This list of JPEG qualities needs to match the COMPRESSION_OPTIONS on the frontend
     LOW_JPEG_QUALITY = 20
     MEDIUM_JPEG_QUALITY = 50
     HIGH_JPEG_QUALITY = 90
     MAX_JPEG_QUALITY = 100
+    JPEG_QUALITIES = [
+        LOW_JPEG_QUALITY,
+        MEDIUM_JPEG_QUALITY,
+        HIGH_JPEG_QUALITY,
+        MAX_JPEG_QUALITY,
+    ]
 
-    JPEG_QUALITIES = [20, 50, 90, 100]
     TEMP_SAMPLE_DIR = 'temp'
 
     def __init__(self):
@@ -89,6 +97,8 @@ class TranscodeService:
         self.video_model = VideoModel()
         self.report_service = ReportService()
         self.ingest_service = IngestService()
+        self.image_metadata_service = ImageMetadataService()
+        self.video_metadata_service = VideoMetadataService()
 
         base_dir = os.path.dirname(os.path.abspath(sys.argv[0]))
         self.ffmpeg_path = os.path.join(base_dir, 'resources', 'ffmpeg.exe')
@@ -102,7 +112,8 @@ class TranscodeService:
             report_dir: str,
             media_type: str,
             transcode_settings_list: List[TranscodeSettings],
-            observer_code: str
+            observer_code: str,
+            compression_buckets: dict = {}
         ) -> int:
         transcode_job_id = self.job_service.create_job(
             JobType.TRANSCODE,
@@ -112,7 +123,9 @@ class TranscodeService:
                 "media_type": media_type,
                 "local_export_path": local_export_path,
                 "report_dir": report_dir,
-                "observer_code": observer_code
+                "observer_code": observer_code,
+                "compression_buckets": compression_buckets,
+                "multi_day_job": len(compression_buckets.keys()) > 0
             }
         )
 
@@ -122,12 +135,45 @@ class TranscodeService:
 
         return transcode_job_id
 
+    def queue_transcode_multi(self, transcode_list):
+        for transcode in transcode_list:
+            source_dir = transcode['source_dir']
+            media_type = transcode['media_type']
+            darkness_correct_all = transcode['darkness_correct_all']
+
+            target_extensions = image_extensions if media_type == MediaType.IMAGE.value else video_extensions
+            files = self.ingest_service.get_files(source_dir, target_extensions)
+
+            # build the transcode_settings_list since the client didn't have a filelist for multi mode
+            transcode_settings_list = [{
+                "file_path": file_path,
+                "is_dark": darkness_correct_all,
+                "needs_metadata": True
+            } for file_path in files]
+
+            self.queue_transcode_job(
+                source_dir,
+                transcode['local_export_path'],
+                transcode['report_dir'],
+                media_type,
+                transcode_settings_list,
+                transcode['observer_code'],
+                transcode['compression_buckets']
+            )
+
+
     def get_sample_image_dir(self):
         thumbnail_dir = self.settings_service.get_setting(SettingsEnum.THUMBNAIL_DIR_PATH.value)
         temp_sample_dir = os.path.join(thumbnail_dir, self.TEMP_SAMPLE_DIR)
         return temp_sample_dir
 
-    def create_sample_images(self, small_image_file_path=None, medium_image_file_path=None, large_image_file_path=None):
+    def create_sample_images(
+            self,
+            small_image_file_path=None,
+            medium_image_file_path=None,
+            large_image_file_path=None,
+            xlarge_image_file_path=None
+        ):
         job_id = self.job_service.create_job(JobType.SAMPLE, JobStatus.INCOMPLETE, {
                 "source_dir": '',
                 "media_type": MediaType.IMAGE.value,
@@ -141,6 +187,9 @@ class TranscodeService:
 
         if large_image_file_path:
             self.create_sample_tasks(job_id, large_image_file_path, 'large')
+
+        if xlarge_image_file_path:
+            self.create_sample_tasks(job_id, xlarge_image_file_path, 'xlarge')
 
         threading.Thread(target=self.run_sample_tasks, args=(job_id,)).start()
         return job_id
@@ -217,18 +266,21 @@ class TranscodeService:
         source_dir_name = os.path.basename(source_dir)
 
         catalog_folder_info = extract_catalog_folder_info(source_dir_name)
+        # remove the source observer code and replace it with the observer code explictly set by the user
+        # later, construct_catalog_folder_path will clean the observer code if it has illegal characters
+        catalog_folder_info = catalog_folder_info[:-1] + (observer_code,)
+
+        # new instance for the video folder data table
+        catalog_folder_id = None
+        if (media_type == MediaType.VIDEO):
+            catalog_folder_id = self.folder_model.create_folder(*catalog_folder_info)
+
         optimized_dir_path = construct_catalog_folder_path(optimized_base_dir, *catalog_folder_info)
         original_dir_path = construct_catalog_folder_path(original_base_dir, *catalog_folder_info)
         local_dir_path = ''
         if local_export_path:
             local_dir_path = construct_catalog_folder_path(local_export_path, *catalog_folder_info)
             os.makedirs(local_dir_path, exist_ok=True)
-
-        catalog_folder_id = None
-        if (media_type == MediaType.VIDEO):
-            # remove the cleaned observer code and replace it with the "real" observer code
-            catalog_folder_info = catalog_folder_info[:-1] + (observer_code,)
-            catalog_folder_id = self.folder_model.create_folder(*catalog_folder_info)
 
         # We expect that all folders leading up to these leafs will exist, and if not, that an Error should be thrown
         retry_job = True # Start as True just to enter the loop, but then we will only set it back to True when we want to retry
@@ -287,7 +339,7 @@ class TranscodeService:
                                 progress_4_transfer
                             )
                         else:
-                            self.transcode_image(optimized_dir_path, original_dir_path, local_dir_path, transcode_task_id, temp_dir)
+                            self.transcode_image(optimized_dir_path, original_dir_path, local_dir_path, transcode_task_id, transcode_job_id, temp_dir)
 
                         self.task_service.set_task_progress(transcode_task_id, 100)
                         self.task_service.set_task_status(transcode_task_id, TaskStatus.COMPLETED)
@@ -328,6 +380,14 @@ class TranscodeService:
     def transcode_video(self, source_dir, optimized_dir_path, original_dir_path, catalog_folder_id, transcode_task_id, transcode_job_id, temp_dir, progress_4_transcode, progress_4_transfer):
         transcode_settings = self.task_service.get_transcode_settings(transcode_task_id)
         self.task_service.set_task_progress(transcode_task_id, 0, TaskProgessMessages.TRANSCODING.value)
+
+        if transcode_settings.needs_metadata:
+            metadata = self.video_metadata_service.parse_metadata(transcode_settings.file_path)
+            transcode_settings.input_height = metadata.height
+            transcode_settings.num_frames = metadata.num_frames
+            transcode_settings.output_framerate = round(float((metadata.frame_rate)))
+            transcode_settings.needs_metadata = False
+            self.task_service.set_task_settings(transcode_task_id, transcode_settings)
 
         # Determine the Adaptive Bitrate Ladder for this video
         input_height = transcode_settings.input_height
@@ -537,8 +597,19 @@ class TranscodeService:
         return line_callback
 
 
-    def transcode_image(self, optimized_dir_path, original_dir_path, local_dir_path, transcode_task_id, temp_dir):
+    def transcode_image(self, optimized_dir_path, original_dir_path, local_dir_path, transcode_task_id, transcode_job_id, temp_dir):
         transcode_settings = self.task_service.get_transcode_settings(transcode_task_id)
+        job_data = self.job_service.get_job_data(transcode_job_id)
+
+        if transcode_settings.needs_metadata:
+            result = self.image_metadata_service.parse_metadata([transcode_settings.file_path])
+            metadata = result[0]
+            image_mp = int(metadata.width) * int(metadata.height)
+            compression_buckets = job_data["compression_buckets"]
+            bucket_key = determine_bucket_for_resolution(compression_buckets, image_mp)
+            transcode_settings.jpeg_quality = compression_buckets[bucket_key]['selection']
+            transcode_settings.needs_metadata = False
+            self.task_service.set_task_settings(transcode_task_id, transcode_settings)
 
         file_path, optimized_temp_path = self.run_transcode_commands(temp_dir, transcode_settings)
         self.task_service.set_task_progress(transcode_task_id, 66)

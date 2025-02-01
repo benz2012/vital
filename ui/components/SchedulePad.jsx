@@ -2,31 +2,14 @@ import { useEffect, useState } from 'react'
 import Select from '@mui/material/Select'
 import MenuItem from '@mui/material/MenuItem'
 import Box from '@mui/material/Box'
-import Dialog from '@mui/material/Dialog'
 import Button from '@mui/material/Button'
 
-const SchedulePad = ({ open, onClose, parent, onCommit }) => {
-  const [top, setTop] = useState(0)
-  const [delayedSlide, setDelayedSlide] = useState(false)
+import JobQueueSidePad from './JobQueueSidePad'
 
+const SchedulePad = ({ open, onClose, parent, onCommit }) => {
   const [hour, setHour] = useState('10')
   const [minute, setMinute] = useState('00')
   const [period, setPerod] = useState('PM')
-
-  useEffect(() => {
-    if (open) {
-      const parentDialogBox = parent.getBoundingClientRect()
-      setTop(parentDialogBox.top)
-      setTimeout(() => setDelayedSlide(true), 0)
-    } else {
-      setDelayedSlide(false)
-    }
-  }, [open])
-
-  const handleClose = () => {
-    setDelayedSlide(false)
-    setTimeout(onClose, 0)
-  }
 
   const [timeError, setTimeError] = useState('')
   useEffect(() => {
@@ -44,25 +27,18 @@ const SchedulePad = ({ open, onClose, parent, onCommit }) => {
     onCommit(`${hour}:${minute}:${period}`)
   }
 
+  const [closePadInc, setClosePadInc] = useState(0)
+  const handleCloseWithinPad = () => {
+    setClosePadInc((prev) => prev + 1)
+  }
+
   return (
-    <Dialog
+    <JobQueueSidePad
       open={open}
-      disablePortal
-      hideBackdrop
-      PaperProps={{
-        sx: {
-          position: 'fixed',
-          padding: 2,
-          width: '250px',
-          marginTop: 0,
-          top: `${top}px`,
-          left: delayedSlide ? 'calc(50% + 48px)' : 'calc(50% + 48px + 250px)',
-          transition: 'left 0.3s ease',
-        },
-      }}
-      slotProps={{
-        root: { sx: { width: 0 } },
-      }}
+      onClose={onClose}
+      parent={parent}
+      width={250}
+      externalCloseIncrementor={closePadInc}
     >
       Today at
       <Box sx={{ marginTop: 1, display: 'flex', gap: 0.5, alignItems: 'center' }}>
@@ -124,7 +100,7 @@ const SchedulePad = ({ open, onClose, parent, onCommit }) => {
         }}
       >
         <Box sx={{ color: 'text.secondary' }}>
-          <Button variant="outlined" color="inherit" onClick={handleClose}>
+          <Button variant="outlined" color="inherit" onClick={handleCloseWithinPad}>
             Cancel
           </Button>
         </Box>
@@ -139,7 +115,7 @@ const SchedulePad = ({ open, onClose, parent, onCommit }) => {
           Set
         </Button>
       </Box>
-    </Dialog>
+    </JobQueueSidePad>
   )
 }
 

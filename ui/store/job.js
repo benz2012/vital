@@ -3,11 +3,32 @@ import { closest } from 'fastest-levenshtein'
 
 import { valueSetter } from './utils'
 import ROUTES, { JOB_PHASES, JOB_MODES } from '../constants/routes'
+import { MAXIMUM_COMPRESSION_OPTION } from '../constants/fileTypes'
 import ingestAPI from '../api/ingest'
 import observersAPI from '../api/observers'
-import { leafPath } from '../utilities/paths'
+import { validateSourceFolder } from '../utilities/paths'
+import { resolutionToTotalPixels } from '../utilities/numbers'
 import useQueueStore from './queue'
 import useRootStore from './index'
+
+const compressionBucketBase = {
+  images: [],
+  selection: MAXIMUM_COMPRESSION_OPTION,
+  resolutions: [],
+  fileSizes: [],
+  sampleReloading: false,
+}
+
+export const RENAME_DEFAULTS = {
+  trimStart: 0,
+  trimEnd: 0,
+  prefix: '',
+  suffix: '',
+  insertText: '',
+  insertAt: 0,
+  findString: '',
+  replaceString: '',
+}
 
 const initialState = {
   phase: JOB_PHASES.INPUTS,
@@ -20,21 +41,48 @@ const initialState = {
   reportDir: '',
   metadataFilter: null,
   issueIgnoreList: [],
-  batchRenameRules: {
-    trimStart: 0,
-    trimEnd: 0,
-    prefix: '',
-    suffix: '',
-    insertText: '',
-    insertAt: 0,
-    findString: '',
-    replaceString: '',
-    applied: true,
-  },
+  batchRenameRules: [
+    /* Shape of Objects in this array
+      {
+        id: '',
+        filePaths: [], // list of source file paths to apply the rule to
+        trimStart: 0,
+        trimEnd: 0,
+        prefix: '',
+        suffix: '',
+        insertText: '',
+        insertAt: 0,
+        findString: '',
+        replaceString: '',
+      }
+    */
+  ],
+  batchRenameRulesValidated: false,
   compressionBuckets: {
-    small: { images: [], selection: 100, size: 0 },
-    medium: { images: [], selection: 100, size: 0 },
-    large: { images: [], selection: 100, size: 0 },
+    small: {
+      ...compressionBucketBase,
+      name: 'Small',
+      bottomThreshold: 0,
+      bucketAbove: 'medium',
+    },
+    medium: {
+      ...compressionBucketBase,
+      name: 'Medium',
+      bottomThreshold: 9_000_000,
+      bucketAbove: 'large',
+    },
+    large: {
+      ...compressionBucketBase,
+      name: 'Large',
+      bottomThreshold: 22_000_000,
+      bucketAbove: 'xlarge',
+    },
+    xlarge: {
+      ...compressionBucketBase,
+      name: 'Extra Large',
+      bottomThreshold: 36_000_000,
+      bucketAbove: null,
+    },
   },
   jobId: null,
   jobIdDark: null,
@@ -42,14 +90,8 @@ const initialState = {
   colorCorrectApplied: false,
   settingsList: [],
   observers: [],
-}
-
-const validateSourceFolder = (folderPath) => {
-  const folderName = leafPath(folderPath)
-  // Check for YYYY-MM-DD-ObserverCode
-  const matchFound = folderName.match(/^\d{4}-\d{2}-\d{2}-(.+)$/i)
-  if (!matchFound) return [false, null]
-  return [true, matchFound[1]]
+  selectedRows: [],
+  multiDayImport: false,
 }
 
 const useJobStore = create((set, get) => ({
@@ -69,60 +111,36 @@ const useJobStore = create((set, get) => ({
   },
 
   triggerParse: async () => {
-    const { sourceFolder, jobMode } = get()
-    const jobId = await ingestAPI.parse(jobMode, sourceFolder)
+    const { sourceFolder, observerCode, jobMode } = get()
+    const jobId = await ingestAPI.parse(jobMode, sourceFolder, observerCode)
     set({ jobId })
+    ingestAPI.deleteSampleImages() // clean this up periodically
   },
 
   triggerSampleImages: async (imagesToExclude = []) => {
     const { compressionBuckets } = get()
-    let possibleSmallImage = compressionBuckets.small?.images?.[0]
-    let possibleMediumImage = compressionBuckets.medium?.images?.[0]
-    let possibleLargeImage = compressionBuckets.large?.images?.[0]
 
-    if (possibleSmallImage && imagesToExclude.includes(possibleSmallImage)) {
-      compressionBuckets.small?.images?.find((image) => {
-        if (!imagesToExclude.includes(image)) {
-          possibleSmallImage = image
-          return true
-        }
-        return false
-      })
-    }
-    if (possibleMediumImage && imagesToExclude.includes(possibleMediumImage)) {
-      compressionBuckets.medium?.images?.find((image) => {
-        if (!imagesToExclude.includes(image)) {
-          possibleMediumImage = image
-          return true
-        }
-        return false
-      })
-    }
-    if (possibleLargeImage && imagesToExclude.includes(possibleLargeImage)) {
-      compressionBuckets.large?.images?.find((image) => {
-        if (!imagesToExclude.includes(image)) {
-          possibleLargeImage = image
-          return true
-        }
-        return false
-      })
-    }
+    const possibleSampleImages = Object.keys(compressionBuckets).map((bucketKey) => {
+      const imagesInBucket = compressionBuckets[bucketKey].images
+      if (imagesInBucket.length === 0) return null
+      // We try to filter out any that we don't want a sample of (e.g. dark images)
+      const possibleImage = imagesInBucket.find(
+        (image) => imagesToExclude.includes(image) === false
+      )
+      // But if that's not possible, we must have at least one sample, so take the first
+      if (!possibleImage) return imagesInBucket[0]
+      return possibleImage
+    })
 
-    const jobId = await ingestAPI.createSampleImages(
-      possibleSmallImage,
-      possibleMediumImage,
-      possibleLargeImage
-    )
+    const jobId = await ingestAPI.createSampleImages(...possibleSampleImages)
     set({ jobId })
   },
 
   triggerDarkImagesIdentify: async () => {
     const { compressionBuckets } = get()
-    const jobId = await ingestAPI.identifyDarkImages([
-      ...(compressionBuckets.small?.images || []),
-      ...(compressionBuckets.medium?.images || []),
-      ...(compressionBuckets.large?.images || []),
-    ])
+    const buckets = Object.values(compressionBuckets)
+    const allImagesFlatList = buckets.map((bucket) => bucket.images).flat(Infinity)
+    const jobId = await ingestAPI.identifyDarkImages(allImagesFlatList)
     set({ jobIdDark: jobId })
   },
 
@@ -132,8 +150,16 @@ const useJobStore = create((set, get) => ({
   },
 
   triggerExecute: async (jobIdDarkSample = null) => {
-    const { jobMode, sourceFolder, settingsList, localOutputFolder, reportDir, observerCode } =
-      get()
+    const {
+      jobMode,
+      sourceFolder,
+      settingsList,
+      localOutputFolder,
+      reportDir,
+      observerCode,
+      multiDayImport,
+    } = get()
+
     await ingestAPI.transcode(
       sourceFolder,
       settingsList,
@@ -143,17 +169,26 @@ const useJobStore = create((set, get) => ({
       observerCode
     )
 
-    if (jobMode === JOB_MODES.BY_IMAGE) {
+    // Do some post-job filesystem cleanup
+    ingestAPI.deleteSampleImages()
+    if (jobMode === JOB_MODES.BY_IMAGE && jobIdDarkSample != null) {
       ingestAPI.deleteDarkSampleImages(jobIdDarkSample)
     }
 
     // After submitting a new job to the queue, Navigate the user back home,
     // reload the queue data, and reset some of the stores like we do in the Navbar
+    useRootStore.getState().resetStore()
     useQueueStore.getState().fetchJobsData()
     useRootStore.getState().setRoute(ROUTES.TOOLS)
-    useRootStore.getState().resetStore()
-    get().reset()
-    useRootStore.getState().setJobQueueOpen(true)
+
+    if (multiDayImport) {
+      // For multi-day imports, we keep the existing job state avaialble to reuse it against additional import folders
+      useRootStore.getState().setMultiDayImportOpen(true)
+    } else {
+      // For a standard one-off jobs, open the queue and reset all existing job state
+      useRootStore.getState().setJobQueueOpen(true)
+      get().reset()
+    }
   },
 
   setSourceFolder: (sourceFolder) => {
@@ -198,44 +233,21 @@ const useJobStore = create((set, get) => ({
     set({ issueIgnoreList: issueIgnoreList.filter((issue) => issue !== issueToRemove) })
   },
 
-  setOneBatchRenameRule: (key, value) => {
+  addBatchRenameRuleset: (newRuleset) => {
     const { batchRenameRules } = get()
-    set({ batchRenameRules: { ...batchRenameRules, applied: false, [key]: value } })
+    set({
+      batchRenameRules: [...batchRenameRules, newRuleset],
+      batchRenameRulesValidated: false,
+    })
   },
-  applyBatchRenameRules: () => {
+  removeBatchRenameRuleset: (rulesetId) => {
     const { batchRenameRules } = get()
-    set({ batchRenameRules: { ...batchRenameRules, applied: true } })
+    set({
+      batchRenameRules: batchRenameRules.filter((ruleset) => ruleset.id !== rulesetId),
+      batchRenameRulesValidated: false,
+    })
   },
-  invalidateBatchRenameRules: () => {
-    const { batchRenameRules } = get()
-    set({ batchRenameRules: { ...batchRenameRules, applied: false } })
-  },
-  processBatchRenameOnString: (string) => {
-    if (!string) return string
-    const { batchRenameRules } = get()
-    const { trimStart, trimEnd, prefix, suffix, insertText, insertAt, findString, replaceString } =
-      batchRenameRules
-    let newString = string
-    if (trimStart > 0) {
-      newString = newString.slice(trimStart)
-    }
-    if (trimEnd > 0) {
-      newString = newString.slice(0, -trimEnd)
-    }
-    if (prefix) {
-      newString = `${prefix}${newString}`
-    }
-    if (suffix) {
-      newString = `${newString}${suffix}`
-    }
-    if (insertText) {
-      newString = newString.slice(0, insertAt) + insertText + newString.slice(insertAt)
-    }
-    if (findString) {
-      newString = newString.replaceAll(findString, replaceString)
-    }
-    return newString
-  },
+  setAllRenamesValidated: valueSetter(set, 'batchRenameRulesValidated'),
 
   setCompressionBuckets: valueSetter(set, 'compressionBuckets'),
   setCompressionSelection: (size, quality) => {
@@ -245,6 +257,17 @@ const useJobStore = create((set, get) => ({
       [size]: {
         ...compressionBuckets[size],
         selection: quality,
+      },
+    }
+    set({ compressionBuckets: newBuckets })
+  },
+  setCompressionSampleReloading: (bucketKey, value) => {
+    const { compressionBuckets } = get()
+    const newBuckets = {
+      ...compressionBuckets,
+      [bucketKey]: {
+        ...compressionBuckets[bucketKey],
+        sampleReloading: value,
       },
     }
     set({ compressionBuckets: newBuckets })
@@ -261,6 +284,19 @@ const useJobStore = create((set, get) => ({
   },
 
   setColorCorrectApplied: valueSetter(set, 'colorCorrectApplied'),
+
+  toggleRowSelection: (rowId) => {
+    const { selectedRows } = get()
+    const isSelected = selectedRows.includes(rowId)
+    const newSelectedRows = isSelected
+      ? selectedRows.filter((selectedRow) => selectedRow !== rowId)
+      : [...selectedRows, rowId]
+    set({ selectedRows: newSelectedRows })
+  },
+  setRowSelection: (rowIds) => set({ selectedRows: rowIds }),
+  clearRowSelection: () => set({ selectedRows: [] }),
+
+  setMultiDayImport: valueSetter(set, 'multiDayImport'),
 }))
 
 const canParse = (state) => {
@@ -274,5 +310,22 @@ const canParse = (state) => {
   return true
 }
 
-export { canParse, initialState }
+/** Find the bucket that this resolution fits into
+ *  Ensure this method matches the server-side implementation determine_bucket_for_resolution
+ */
+const determineBucketForResolution = (compressionBuckets, resolution) => {
+  const megapixels = resolutionToTotalPixels(resolution)
+  const foundBucketKey = Object.keys(compressionBuckets).find((bucketKey) => {
+    const bucket = compressionBuckets[bucketKey]
+    const imageLargerThanBucketMin = megapixels >= bucket.bottomThreshold
+    if (!bucket.bucketAbove) return imageLargerThanBucketMin
+    return (
+      imageLargerThanBucketMin &&
+      megapixels < compressionBuckets[bucket.bucketAbove].bottomThreshold
+    )
+  })
+  return foundBucketKey
+}
+
+export { canParse, determineBucketForResolution, initialState }
 export default useJobStore
